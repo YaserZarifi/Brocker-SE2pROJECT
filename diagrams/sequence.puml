@@ -1,0 +1,33 @@
+@startuml
+title Order Execution - Sequence Diagram
+
+actor User
+participant "Order Service" as OS
+participant "Matching Engine" as ME
+participant "Blockchain Service" as BS
+participant "Notification Service" as NS
+
+User -> OS : Place Order (Stock, Price, Volume)
+activate OS
+
+OS -> ME : Send Order for Matching
+activate ME
+ME -> ME : Process Matching Logic
+ME --> OS : Match Found (Transaction Details)
+deactivate ME
+
+OS -> BS : Record Final Transaction
+activate BS
+BS -> BS : Store in Private Blockchain
+BS --> OS : Transaction Confirmed
+deactivate BS
+
+OS -> NS : Trigger Update
+activate NS
+NS -> User : Send Real-time Notification (Socket)
+deactivate NS
+
+OS --> User : Order Fulfilled Successfully
+deactivate OS
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml
+title Incident Management Process - Activity Diagram
+
+start
+
+:Monitoring System detects a Failure;
+note right: e.g., Matching Engine Timeout
+
+:Trigger Alert to On-Call Engineer;
+
+if (Critical Priority?) then (yes)
+  :Notify Senior SRE via PagerDuty;
+else (no)
+  :Log Incident in Jira/Ticket System;
+endif
+
+:Engineer analyzes Logs & Metrics;
+:Identify Root Cause;
+
+partition "Resolution Phase" {
+  :Apply Fix (Rollback or Patch);
+  :Verify System Health;
+}
+
+:Close Incident Ticket;
+
+partition "Documentation Phase" {
+  :Draft Postmortem Report;
+  note right: Required by Project Document (Page 10)
+  :Review with Engineering Team;
+  :Update Standard Operating Procedures (SOP);
+}
+
+stop
+@enduml

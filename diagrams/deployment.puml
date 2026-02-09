@@ -1,0 +1,53 @@
+@startuml
+title Brokerage System - Deployment Diagram (K8s Cluster)
+
+skinparam node {
+    BackgroundColor LightBlue
+}
+
+node "User Device" as UD {
+    [Web Browser / Mobile App] as Client
+}
+
+cloud "Cloud Infrastructure / Data Center" {
+
+    node "Kubernetes Cluster" as K8s {
+
+        node "Namespace: Production" {
+            component [API Gateway] as Gateway
+            component [Order Management Service] as OrderSrv
+            component [Notification Service] as NotifSrv
+            component [Matching Engine] as Engine
+        }
+
+        node "Namespace: Monitoring" {
+            component [Prometheus Server] as Prometheus
+            component [Grafana Dashboard] as Grafana
+        }
+    }
+
+    node "Private Blockchain Network" as PBN {
+        component [Ethereum Node (EVM)] as EVM
+        artifact "Smart Contract (Solidity)" as SC
+    }
+
+    database "Persistent Data Store" {
+        [PostgreSQL (User/Order Data)] as DB
+        [Redis (Caching/Session)] as Cache
+    }
+}
+
+
+Client -- Gateway : HTTPS / REST
+Gateway -- OrderSrv
+OrderSrv -- Engine
+OrderSrv -- DB
+OrderSrv -- EVM : Web3 / RPC
+EVM -- SC
+
+
+NotifSrv -- Client : WebSockets (Socket.io)
+Prometheus -- OrderSrv : Scrapes Metrics
+Grafana -- Prometheus : Visualizes
+
+@enduml

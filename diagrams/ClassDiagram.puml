@@ -1,0 +1,40 @@
+@startuml
+title Brokerage System - Class Diagram
+
+class User {
+    +int userId
+    +string name
+    +Portfolio portfolio
+}
+
+class Stock {
+    +string symbol
+    +double currentPrice
+    +long volume
+}
+
+class Order {
+    +int orderId
+    +DateTime timestamp
+    +double price
+    +OrderType type
+}
+ 
+class Transaction {
+    +int transactionId
+    +double finalPrice
+    +DateTime executionTime
+}
+
+class BlockchainLedger {
+    +void recordTransaction(Transaction t)
+    +string getHash()
+}
+
+User "1" -- "1" Portfolio
+Portfolio "1" o-- "*" Stock
+User "1" -- "*" Order
+Order "2" -- "1" Transaction : matches
+Transaction "*" -- "1" BlockchainLedger : stored in
+
+@enduml

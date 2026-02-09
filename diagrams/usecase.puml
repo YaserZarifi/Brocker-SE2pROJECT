@@ -1,0 +1,30 @@
+@startuml
+title Brokerage System - Use Case Diagram
+
+left to right direction
+
+actor "مشتری (User)" as User
+actor "سیستم بلاکچین" as Blockchain <<System>>
+actor "مدیر سیستم" as Admin
+
+rectangle "سامانه کارگزاری بورس آنلاین" {
+    usecase "ورود به سامانه (Login/SIWE)" as UC1
+    usecase "جستجوی سهام" as UC2
+    usecase "ثبت سفارش خرید/فروش" as UC3
+    usecase "مشاهده سبد سهام (Portfolio)" as UC4
+    usecase "دریافت اعلان لحظه‌ای" as UC5
+    usecase "مدیریت کاربران و نمادها" as UC6
+    usecase "ثبت نهایی در دفتر کل" as UC7
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+
+UC3 ..> UC7 : <<include>>
+UC7 -- Blockchain
+
+Admin --> UC6
+@enduml

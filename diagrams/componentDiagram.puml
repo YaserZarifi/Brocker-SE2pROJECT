@@ -1,0 +1,32 @@
+@startuml
+title Brokerage System - Microservices Architecture
+
+package "Frontend Layer" {
+    [Web/Mobile App] as UI
+}
+
+package "API Gateway Layer" {
+    [API Gateway] as Gateway
+}
+
+package "Core Services" {
+    [User Management] as UserSrv
+    [Order Service] as OrderSrv
+    [Stock Service] as StockSrv
+}
+
+package "Infrastructure" {
+    [Matching Engine] as Engine
+    [Message Broker (RabbitMQ/Kafka)] as Broker
+    [Private Blockchain] as BC
+}
+
+UI --> Gateway
+Gateway --> UserSrv
+Gateway --> OrderSrv
+Gateway --> StockSrv
+
+OrderSrv --> Engine : Submit Order
+Engine --> Broker : Match Event
+Broker --> BC : Record Transaction
+@enduml
