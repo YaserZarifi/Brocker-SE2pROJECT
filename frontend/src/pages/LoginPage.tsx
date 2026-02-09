@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { TrendingUp, Mail, Lock, Wallet, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthStore } from "@/stores/authStore";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { LanguageToggle } from "@/components/common/LanguageToggle";
+import { siweService } from "@/services/siweService";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -31,9 +32,16 @@ export default function LoginPage() {
   };
 
   const handleSIWE = async () => {
-    await loginWithEthereum("0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18");
-    navigate("/dashboard");
+    setErrorMsg("");
+    try {
+      await loginWithEthereum();
+      navigate("/dashboard");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Ethereum login failed");
+    }
   };
+
+  const hasMetaMask = siweService.isWalletAvailable();
 
   return (
     <div className="relative flex min-h-screen">
@@ -187,19 +195,23 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* SIWE */}
-          <Button
-            variant="outline"
-            className={cn("w-full h-11 gap-2.5")}
-            onClick={handleSIWE}
-            disabled={isLoading}
-          >
-            <Wallet className="h-4 w-4" />
-            {t("auth.siwe")}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            {t("auth.siweDesc")}
-          </p>
+          {/* SIWE - Connect Wallet */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className={cn("w-full h-11 gap-2.5")}
+              onClick={handleSIWE}
+              disabled={isLoading}
+            >
+              <Wallet className="h-4 w-4" />
+              {hasMetaMask ? t("auth.siwe") : "Install MetaMask"}
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              {hasMetaMask
+                ? t("auth.siweDesc")
+                : "MetaMask browser extension required for wallet login"}
+            </p>
+          </div>
 
           {/* Register Link */}
           <p className="text-center text-sm text-muted-foreground">

@@ -22,22 +22,17 @@ export default function MarketPage() {
     sortBy,
     setSortBy,
     getFilteredStocks,
-    simulatePriceUpdate,
     marketStats,
   } = useStockStore();
 
   const { fetchStocks, fetchMarketStats } = useStockStore();
   const filteredStocks = getFilteredStocks();
 
+  // Fetch data from API (prices update in real-time via WebSocket - Sprint 5)
   useEffect(() => {
     fetchStocks();
     fetchMarketStats();
   }, []);
-
-  useEffect(() => {
-    const interval = setInterval(simulatePriceUpdate, 3000);
-    return () => clearInterval(interval);
-  }, [simulatePriceUpdate]);
 
   const sectors = [
     "all",

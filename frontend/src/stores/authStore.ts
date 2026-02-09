@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import type { User } from "@/types";
 import { authService } from "@/services/authService";
+import { siweService } from "@/services/siweService";
 import { getAccessToken } from "@/services/api";
+import { wsManager } from "@/services/websocketService";
 
 interface AuthState {
   user: User | null;
@@ -9,7 +11,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  loginWithEthereum: (address: string) => Promise<void>;
+  loginWithEthereum: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
@@ -38,22 +40,32 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  loginWithEthereum: async (address: string) => {
+  loginWithEthereum: async () => {
     set({ isLoading: true, error: null });
-    // SIWE will be implemented in Sprint 5
-    await new Promise((r) => setTimeout(r, 1500));
-    set({
-      user: {
-        id: "siwe-user",
-        name: "Ethereum User",
-        email: "",
-        role: "customer",
-        walletAddress: address,
-        createdAt: new Date().toISOString(),
-      },
-      isAuthenticated: true,
-      isLoading: false,
-    });
+    try {
+      // Check if MetaMask is available
+      if (!siweService.isWalletAvailable()) {
+        throw new Error(
+          "MetaMask is not installed. Please install MetaMask browser extension."
+        );
+      }
+
+      // Complete SIWE flow: connect → sign → verify → JWT
+      const result = await siweService.loginWithEthereum();
+
+      set({
+        user: result.user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (err: any) {
+      const message =
+        err.response?.data?.detail ||
+        err.message ||
+        "Ethereum login failed.";
+      set({ isLoading: false, error: message });
+      throw new Error(message);
+    }
   },
 
   register: async (name: string, email: string, password: string) => {
@@ -87,6 +99,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     authService.logout();
+    wsManager.disconnectAll();
     set({ user: null, isAuthenticated: false });
   },
 

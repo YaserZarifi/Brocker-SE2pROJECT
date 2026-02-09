@@ -5,12 +5,14 @@ import { router } from "@/router";
 import { useThemeStore } from "@/stores/themeStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useNotificationStore } from "@/stores/notificationStore";
+import { useStockStore } from "@/stores/stockStore";
 import "@/i18n";
 
 export default function App() {
   const { theme, language, direction } = useThemeStore();
   const { checkAuth, isAuthenticated } = useAuthStore();
-  const { fetchNotifications } = useNotificationStore();
+  const { fetchNotifications, connectWebSocket: connectNotificationWs, disconnectWebSocket: disconnectNotificationWs } = useNotificationStore();
+  const { connectWebSocket: connectStockWs } = useStockStore();
 
   // Apply theme on mount and change
   useEffect(() => {
@@ -25,10 +27,18 @@ export default function App() {
     checkAuth();
   }, []);
 
-  // Fetch notifications when authenticated
+  // Connect stock price WebSocket on mount (public, no auth needed)
+  useEffect(() => {
+    connectStockWs();
+  }, []);
+
+  // When authenticated: fetch notifications + connect notification WebSocket
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
+      connectNotificationWs();
+    } else {
+      disconnectNotificationWs();
     }
   }, [isAuthenticated]);
 

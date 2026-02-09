@@ -40,7 +40,7 @@ export default function StockDetailPage() {
   const { symbol } = useParams<{ symbol: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stocks, simulatePriceUpdate, fetchStocks } = useStockStore();
+  const { stocks, fetchStocks } = useStockStore();
   const { language } = useThemeStore();
 
   const stock = stocks.find((s) => s.symbol === symbol);
@@ -86,10 +86,7 @@ export default function StockDetailPage() {
       .catch(() => setOrderBook(generateOrderBook(stock.currentPrice)));
   }, [symbol, stock?.currentPrice]);
 
-  useEffect(() => {
-    const interval = setInterval(simulatePriceUpdate, 3000);
-    return () => clearInterval(interval);
-  }, [simulatePriceUpdate]);
+  // Price updates happen via WebSocket in real-time (Sprint 5)
 
   useEffect(() => {
     if (stock) setPrice(stock.currentPrice.toString());

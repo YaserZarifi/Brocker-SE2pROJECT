@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Stock, MarketStats } from "@/types";
 import { stockService } from "@/services/stockService";
-import { generateRandomPrice } from "@/lib/utils";
+import { wsManager } from "@/services/websocketService";
 
 interface StockState {
   stocks: Stock[];
@@ -11,13 +11,16 @@ interface StockState {
   sortBy: string;
   isLoading: boolean;
   error: string | null;
+  wsConnected: boolean;
   setSearchQuery: (query: string) => void;
   setSelectedSector: (sector: string) => void;
   setSortBy: (sort: string) => void;
   getFilteredStocks: () => Stock[];
-  simulatePriceUpdate: () => void;
   fetchStocks: () => Promise<void>;
   fetchMarketStats: () => Promise<void>;
+  updateStockPrice: (data: Partial<Stock> & { symbol: string }) => void;
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
 }
 
 const defaultMarketStats: MarketStats = {
@@ -40,6 +43,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   sortBy: "symbol",
   isLoading: false,
   error: null,
+  wsConnected: false,
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSelectedSector: (selectedSector) => set({ selectedSector }),
@@ -105,21 +109,41 @@ export const useStockStore = create<StockState>((set, get) => ({
     return filtered;
   },
 
-  simulatePriceUpdate: () => {
+  updateStockPrice: (data) => {
     set((state) => ({
       stocks: state.stocks.map((stock) => {
-        const newPrice = generateRandomPrice(stock.currentPrice, 0.005);
-        const change = +(newPrice - stock.previousClose).toFixed(2);
-        const changePercent = +((change / stock.previousClose) * 100).toFixed(2);
+        if (stock.symbol !== data.symbol) return stock;
         return {
           ...stock,
-          currentPrice: newPrice,
-          change,
-          changePercent,
-          high24h: Math.max(stock.high24h, newPrice),
-          low24h: Math.min(stock.low24h, newPrice),
+          currentPrice: data.currentPrice ?? stock.currentPrice,
+          previousClose: data.previousClose ?? stock.previousClose,
+          change: data.change ?? stock.change,
+          changePercent: data.changePercent ?? stock.changePercent,
+          volume: data.volume ?? stock.volume,
+          high24h: data.high24h ?? stock.high24h,
+          low24h: data.low24h ?? stock.low24h,
         };
       }),
     }));
+  },
+
+  connectWebSocket: () => {
+    if (get().wsConnected) return;
+
+    // Register handler for incoming WebSocket stock price updates
+    wsManager.onStockUpdate((message) => {
+      if (message.type === "stock_update" && message.data) {
+        get().updateStockPrice(message.data);
+      }
+    });
+
+    // Connect to stock prices WebSocket
+    wsManager.connectStockPrices();
+    set({ wsConnected: true });
+  },
+
+  disconnectWebSocket: () => {
+    wsManager.disconnectStockPrices();
+    set({ wsConnected: false });
   },
 }));

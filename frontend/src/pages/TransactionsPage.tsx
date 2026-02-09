@@ -112,11 +112,13 @@ export default function TransactionsPage() {
                       <td className="py-3.5 text-end text-sm tabular-nums">{tx.quantity}</td>
                       <td className="py-3.5 text-end text-sm tabular-nums font-medium">{formatPrice(tx.totalValue, language)}</td>
                       <td className="py-3.5 hidden md:table-cell">
-                        {tx.blockchainHash && (
-                          <Button variant="ghost" size="sm" className="h-7 gap-1 font-mono text-xs text-muted-foreground">
-                            {tx.blockchainHash}
+                        {tx.blockchainHash ? (
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 font-mono text-xs text-muted-foreground" title={tx.blockchainHash}>
+                            {tx.blockchainHash.slice(0, 6)}...{tx.blockchainHash.slice(-4)}
                             <ExternalLink className="h-3 w-3" />
                           </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground/50">-</span>
                         )}
                       </td>
                       <td className="py-3.5 text-center">

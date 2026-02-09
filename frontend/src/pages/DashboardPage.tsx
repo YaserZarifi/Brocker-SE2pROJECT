@@ -40,24 +40,18 @@ const indexHistory = generatePriceHistory(2_187_450, 30).map((p) => ({
 export default function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stocks, marketStats, simulatePriceUpdate, fetchStocks, fetchMarketStats } = useStockStore();
+  const { stocks, marketStats, fetchStocks, fetchMarketStats } = useStockStore();
   const { language } = useThemeStore();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Fetch data from API
+  // Fetch data from API (prices update in real-time via WebSocket - Sprint 5)
   useEffect(() => {
     fetchStocks();
     fetchMarketStats();
     orderService.getPortfolio().then(setPortfolio).catch(() => {});
     transactionService.getTransactions().then(setTransactions).catch(() => {});
   }, []);
-
-  // Simulate real-time price updates
-  useEffect(() => {
-    const interval = setInterval(simulatePriceUpdate, 3000);
-    return () => clearInterval(interval);
-  }, [simulatePriceUpdate]);
 
   const topGainers = [...stocks]
     .sort((a, b) => b.changePercent - a.changePercent)

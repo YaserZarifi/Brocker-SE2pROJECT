@@ -39,11 +39,13 @@ backend/db.sqlite3
 backend/media/
 backend/staticfiles/
 
-# Blockchain specific (future)
+# Blockchain specific (Sprint 4)
 contracts/node_modules/
 contracts/artifacts/
 contracts/cache/
 contracts/typechain-types/
+contracts/deployments/
+backend/blockchain_service/contract_address.json
 
 # Enterprise Architect temp
 diagrams/EA/*.ldb

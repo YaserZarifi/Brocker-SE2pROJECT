@@ -1,21 +1,26 @@
 import { create } from "zustand";
 import type { Notification } from "@/types";
 import { notificationService } from "@/services/notificationService";
+import { wsManager } from "@/services/websocketService";
 
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
   isLoading: boolean;
+  wsConnected: boolean;
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   addNotification: (notification: Notification) => void;
+  connectWebSocket: () => void;
+  disconnectWebSocket: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
+  wsConnected: false,
 
   fetchNotifications: async () => {
     set({ isLoading: true });
@@ -58,5 +63,25 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       notifications: [notification, ...state.notifications],
       unreadCount: get().unreadCount + (notification.read ? 0 : 1),
     }));
+  },
+
+  connectWebSocket: () => {
+    if (get().wsConnected) return;
+
+    // Register handler for incoming WebSocket notifications
+    wsManager.onNotification((message) => {
+      if (message.type === "notification" && message.data) {
+        get().addNotification(message.data as Notification);
+      }
+    });
+
+    // Connect to notification WebSocket
+    wsManager.connectNotifications();
+    set({ wsConnected: true });
+  },
+
+  disconnectWebSocket: () => {
+    wsManager.disconnectNotifications();
+    set({ wsConnected: false });
   },
 }));
