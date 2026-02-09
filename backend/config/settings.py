@@ -1,6 +1,7 @@
 """
 Django settings for BourseChain project.
 Sprint 2 - Backend API + Database
+Sprint 3 - Matching Engine + Celery
 """
 
 import os
@@ -249,3 +250,46 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Tehran"
+
+# For development without RabbitMQ: run Celery tasks synchronously (in-process).
+# Automatically enabled when USE_SQLITE is True (dev mode), or set explicitly.
+_use_eager = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "").lower() in ("true", "1", "yes")
+if not _use_eager and os.environ.get("USE_SQLITE", "False").lower() in ("true", "1", "yes"):
+    _use_eager = True
+
+CELERY_TASK_ALWAYS_EAGER = _use_eager
+CELERY_TASK_EAGER_PROPAGATES = _use_eager  # Propagate exceptions in eager mode
+
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "orders": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}

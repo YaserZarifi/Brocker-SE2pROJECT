@@ -57,6 +57,11 @@ class Order(models.Model):
         return self.stock.name
 
     @property
+    def remaining_quantity(self):
+        """Quantity still waiting to be filled."""
+        return self.quantity - self.filled_quantity
+
+    @property
     def is_fully_filled(self):
         return self.filled_quantity >= self.quantity
 

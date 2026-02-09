@@ -30,7 +30,7 @@
 | **Database** | PostgreSQL (+ SQLite for dev) | ✅ Sprint 2 |
 | **Cache/Session** | Redis (+ LocMem for dev) | ✅ Sprint 2 |
 | **API Docs** | drf-spectacular (Swagger UI) | ✅ Sprint 2 |
-| **Message Broker** | RabbitMQ (via Celery) | ⏳ Sprint 3 |
+| **Message Broker** | RabbitMQ (via Celery) + EAGER fallback for dev | ✅ Sprint 3 |
 | **Blockchain** | Hardhat + Ethers.js + Solidity (ERC20/ERC1155) | ⏳ Sprint 4 |
 | **Real-time** | Django Channels + WebSocket | ⏳ Sprint 5 |
 | **Container** | Docker + Docker Compose | ⏳ Sprint 6 |
@@ -81,7 +81,9 @@ d:\Amirkabir\SE2\Project\
 │
 ├── backend/                 # ✅ Django Backend (Sprint 2)
 │   ├── config/              # Django project settings, urls, wsgi, asgi
-│   │   └── settings.py      # PostgreSQL, Redis, JWT, CORS, Celery configs
+│   │   ├── settings.py      # PostgreSQL, Redis, JWT, CORS, Celery configs, Logging
+│   │   ├── celery.py        # ✅ Sprint 3: Celery app configuration
+│   │   └── __init__.py      # ✅ Sprint 3: Celery app auto-import
 │   ├── users/               # Custom User model (UUID PK, email login, JWT auth, role, wallet_address, cash_balance)
 │   │   ├── models.py        # User(AbstractUser) with Role choices
 │   │   ├── serializers.py   # UserSerializer, UserRegistrationSerializer, AdminUserSerializer
@@ -93,11 +95,14 @@ d:\Amirkabir\SE2\Project\
 │   │   ├── views.py         # StockListView, StockDetailView, StockPriceHistoryView, market_stats, AdminStockViews
 │   │   ├── urls.py          # /stocks/, /stocks/stats/, /stocks/<symbol>/, /stocks/<symbol>/history/
 │   │   └── management/commands/seed_data.py  # Seeds 12 stocks + users + orders + transactions + notifications
-│   ├── orders/              # Order + PortfolioHolding models
+│   ├── orders/              # Order + PortfolioHolding models + Matching Engine (Sprint 3)
 │   │   ├── models.py        # Order (buy/sell, pending/matched/partial/cancelled/expired), PortfolioHolding
+│   │   ├── matching.py      # ✅ Sprint 3: Price-Time Priority Matching Engine (match_order, _execute_match)
+│   │   ├── tasks.py         # ✅ Sprint 3: Celery tasks (match_order_task, match_all_pending_task)
 │   │   ├── serializers.py   # OrderSerializer, OrderCreateSerializer, PortfolioSerializer, OrderBookSerializer
-│   │   ├── views.py         # OrderListView, OrderCreateView, OrderCancelView, portfolio_view, order_book_view
-│   │   └── urls.py          # /orders/, /orders/create/, /orders/<id>/cancel/, /orders/portfolio/, /orders/book/<symbol>/
+│   │   ├── views.py         # OrderListView, OrderCreateView (cash/stock reservation), OrderCancelView (refund), portfolio_view, order_book_view
+│   │   ├── urls.py          # /orders/, /orders/create/, /orders/<id>/cancel/, /orders/portfolio/, /orders/book/<symbol>/
+│   │   └── management/commands/test_matching.py  # Test command for matching engine (5 scenarios)
 │   ├── transactions/        # Transaction model (matched buy+sell)
 │   │   ├── models.py        # Transaction (buy_order, sell_order, stock, price, qty, blockchain_hash, status)
 │   │   ├── serializers.py   # TransactionSerializer (camelCase)
@@ -206,11 +211,24 @@ npm run dev     # → http://localhost:5173 (proxy /api → :8000)
 5. اگه refresh هم fail → redirect به `/login`
 6. `App.tsx` → `checkAuth()` on mount → اگه token داشت profile رو fetch کن
 
-### Order Flow:
+### Order Flow (Sprint 3 - Complete):
 1. User → POST `/orders/create/` {stock_symbol, type:"buy"|"sell", price, quantity}
 2. Backend validate: cash balance (buy) یا holdings (sell)
-3. Order ساخته میشه با status=pending
-4. ⏳ Sprint 3: Matching Engine اتوماتیک match می‌کنه
+3. **Cash/Stock Reservation**: پول (buy) یا سهام (sell) فوراً کسر میشه
+4. Order ساخته میشه با status=pending
+5. **Celery Task**: `match_order_task` اتوماتیک trigger میشه
+6. **Matching Engine** (`orders/matching.py`):
+   - Buy: پیدا کردن sell orders با price <= buy_price (ارزان‌ترین اول)
+   - Sell: پیدا کردن buy orders با price >= sell_price (گران‌ترین اول)
+   - Execution price = قیمت maker (سفارشی که زودتر ثبت شده)
+7. برای هر match:
+   - Transaction ساخته میشه (status=confirmed)
+   - filled_quantity و status آپدیت میشه
+   - پول به فروشنده منتقل میشه
+   - سهام به خریدار منتقل میشه (با weighted average price)
+   - قیمت سهم و volume آپدیت میشه
+   - Notification دوزبانه به هر دو طرف
+8. **Cancel**: لغو سفارش → برگشت پول/سهام رزرو شده (فقط بخش fill نشده)
 
 ---
 
@@ -233,14 +251,20 @@ npm run dev     # → http://localhost:5173 (proxy /api → :8000)
 - Frontend: Axios + service layer + stores connected to API
 - Vite proxy + JWT auto-refresh
 
-### ⏳ Sprint 3 - Matching Engine + Order System (بعدی)
-- Order matching algorithm (price-time priority)
-- Celery + RabbitMQ for async processing
-- وقتی buy و sell با قیمت مناسب وجود داره → اتوماتیک Transaction بسازه
+### ✅ Sprint 3 - Matching Engine + Order System (DONE)
+- Order matching algorithm (price-time priority) → `orders/matching.py`
+- Celery + RabbitMQ for async processing → `orders/tasks.py` + `config/celery.py`
+- Dev fallback: `CELERY_TASK_ALWAYS_EAGER=True` (auto-enabled with USE_SQLITE)
+- وقتی buy و sell با قیمت مناسب وجود داره → اتوماتیک Transaction ساخته میشه
 - Order status updates (pending → matched/partial)
-- Partial fill support
-- آپدیت PortfolioHolding و cash_balance بعد از match
-- ارسال Notification بعد از match
+- Partial fill support (یک سفارش بزرگ با چندین سفارش کوچک match میشه)
+- Cash reservation: پول خریدار موقع ثبت سفارش کسر و موقع لغو برگشت داده میشه
+- Stock reservation: سهام فروشنده موقع ثبت سفارش کسر و موقع لغو برگشت داده میشه
+- آپدیت PortfolioHolding (weighted avg price) و cash_balance بعد از match
+- آپدیت قیمت سهم و حجم معاملات بعد از هر match
+- ارسال Notification دوزبانه (FA/EN) بعد از match به هر دو طرف
+- Order Book view: نمایش مقدار باقی‌مانده (remaining) بجای کل
+- Management command: `python manage.py test_matching` (5 scenario test)
 
 ### ⏳ Sprint 4 - Blockchain Integration
 - Hardhat project setup
@@ -268,7 +292,7 @@ npm run dev     # → http://localhost:5173 (proxy /api → :8000)
 
 ### اجباری
 1. ✅ مشاهده لیست سهام
-2. ⏳ ثبت سفارش خرید/فروش + Matching Engine (Sprint 3)
+2. ✅ ثبت سفارش خرید/فروش + Matching Engine (Sprint 3)
 3. ⏳ اعلان لحظه‌ای وضعیت سفارش‌ها - WebSocket (Sprint 5)
 4. ⏳ ثبت تراکنش در بلاکچین خصوصی - EVM + Smart Contract (Sprint 4)
 5. ✅ نمایش سبد سهام و وضعیت معاملات
@@ -312,7 +336,8 @@ npm run dev     # → http://localhost:5173 (proxy /api → :8000)
 
 ## نکات مهم برای ادامه کار
 
-- **Sprint 3 بعدیه**: Matching Engine باید در `backend/orders/` ساخته بشه (Celery task)
+- **Sprint 3 انجام شد**: Matching Engine در `backend/orders/matching.py` پیاده‌سازی شده
+- **Sprint 4 بعدیه**: Blockchain Integration با Hardhat + Solidity
 - فایل `SE_PRJCT.pdf` را برای نیازمندی‌های دقیق هر بخش بخوان
 - دیاگرام‌ها در `diagrams/` هستن (PlantUML + EA PNG)
 - Backend virtual env: `backend/venv/` (در .gitignore هست)
