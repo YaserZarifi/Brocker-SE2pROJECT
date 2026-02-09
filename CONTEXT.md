@@ -334,13 +334,40 @@ npm run dev     # → http://localhost:5173 (proxy /api → :8000)
 
 ---
 
+## تست‌ها (Sprint 3 - 103 تست)
+
+### اجرا
+```powershell
+cd backend
+.\venv\Scripts\activate
+$env:USE_SQLITE="True"; $env:USE_LOCMEM_CACHE="True"
+python manage.py test -v2          # همه 103 تست
+python manage.py test orders -v2   # فقط تست‌های Matching Engine
+```
+
+### فایل‌های تست
+| فایل | تعداد | شامل |
+|---|---|---|
+| `orders/tests.py` | 47 | Matching Engine (exact/partial/no-match/multi/priority/self-trade), Order API, Cancel+Refund, Portfolio, OrderBook |
+| `users/tests.py` | 18 | مدل User, ثبت‌نام, ورود JWT, پروفایل, تغییر رمز |
+| `stocks/tests.py` | 14 | مدل Stock, لیست سهام, جزئیات, آمار بازار |
+| `transactions/tests.py` | 8 | مدل Transaction, تراکنش بعد از match, API لیست |
+| `notifications/tests.py` | 16 | مدل Notification, اعلان دوزبانه بعد از match, API |
+
+---
+
 ## نکات مهم برای ادامه کار
 
-- **Sprint 3 انجام شد**: Matching Engine در `backend/orders/matching.py` پیاده‌سازی شده
+- **Sprint 3 انجام شد**: Matching Engine + 103 تست + Celery
 - **Sprint 4 بعدیه**: Blockchain Integration با Hardhat + Solidity
+- **هیچ API پولی لازم نیست**: Hardhat یک بلاکچین لوکال رایگان اجرا می‌کنه
+- مدل Transaction فیلد `blockchain_hash` داره (فعلاً خالی - Sprint 4 پرش می‌کنه)
+- `backend/blockchain_service/` اپ placeholder هست و آماده پر شدنه
+- `contracts/` دایرکتوری خالی برای Solidity هست
 - فایل `SE_PRJCT.pdf` را برای نیازمندی‌های دقیق هر بخش بخوان
 - دیاگرام‌ها در `diagrams/` هستن (PlantUML + EA PNG)
 - Backend virtual env: `backend/venv/` (در .gitignore هست)
 - Database: `backend/db.sqlite3` (در .gitignore هست) - `python manage.py seed_data` برای rebuild
-- Frontend mock data هنوز موجوده در `mockData.ts` به عنوان fallback (generatePriceHistory, generateOrderBook)
+- Frontend mock data هنوز موجوده در `mockData.ts` به عنوان fallback
 - همه صفحات فرانت الان به API واقعی وصلن (فقط price simulation هنوز client-side هست تا Sprint 5 WebSocket)
+- **PowerShell**: از `&&` استفاده نکن، بجاش از `;` استفاده کن. working_directory پارامتر Shell tool رو ست کن.
