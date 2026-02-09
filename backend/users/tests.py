@@ -8,6 +8,7 @@ BourseChain - تست‌های کاربران و احراز هویت (Authenticat
   - پروفایل کاربر (Profile)
   - تغییر رمز عبور
   - مدیریت ادمین
+  - Sprint 5: SIWE (Sign-In with Ethereum) - EIP-4361
 
 اجرا:
   python manage.py test users -v2
@@ -302,6 +303,196 @@ class TestChangePasswordAPI(APITestCase):
         response = self.client.put("/api/v1/auth/change-password/", {
             "old_password": "WrongOldPass!",
             "new_password": "NewPass5678!",
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# =============================================================================
+# 6. تست SIWE (Sign-In with Ethereum) - Sprint 5
+# =============================================================================
+
+
+from django.core.cache import cache
+from eth_account import Account
+from eth_account.messages import encode_defunct
+
+
+class TestSIWENonceAPI(APITestCase):
+    """تست‌های endpoint دریافت nonce برای SIWE."""
+
+    def test_get_nonce(self):
+        """دریافت nonce جدید."""
+        response = self.client.get("/api/v1/auth/siwe/nonce/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("nonce", response.data)
+        self.assertTrue(len(response.data["nonce"]) > 0)
+
+    def test_nonce_is_unique(self):
+        """هر بار nonce متفاوت باید تولید شود."""
+        r1 = self.client.get("/api/v1/auth/siwe/nonce/")
+        r2 = self.client.get("/api/v1/auth/siwe/nonce/")
+        self.assertNotEqual(r1.data["nonce"], r2.data["nonce"])
+
+    def test_nonce_cached(self):
+        """nonce باید در cache ذخیره شود."""
+        response = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = response.data["nonce"]
+        self.assertTrue(cache.get(f"siwe_nonce_{nonce}"))
+
+
+class TestSIWEVerifyAPI(APITestCase):
+    """تست‌های endpoint تأیید SIWE (Sign-In with Ethereum)."""
+
+    def _create_siwe_message(self, address, nonce):
+        """ساخت پیام EIP-4361."""
+        domain = "localhost"
+        origin = "http://localhost:5173"
+        from datetime import datetime
+        issued_at = datetime.utcnow().isoformat() + "Z"
+        return (
+            f"{domain} wants you to sign in with your Ethereum account:\n"
+            f"{address}\n\n"
+            f"Sign in to BourseChain - Online Stock Brokerage Platform\n\n"
+            f"URI: {origin}\n"
+            f"Version: 1\n"
+            f"Chain ID: 1\n"
+            f"Nonce: {nonce}\n"
+            f"Issued At: {issued_at}"
+        )
+
+    def _sign_message(self, message, private_key):
+        """امضای پیام با کلید خصوصی اتریوم."""
+        from web3 import Web3
+        w3 = Web3()
+        encoded = encode_defunct(text=message)
+        signed = w3.eth.account.sign_message(encoded, private_key=private_key)
+        return signed.signature.hex()
+
+    def test_verify_valid_signature(self):
+        """تأیید امضای معتبر SIWE و دریافت JWT."""
+        # Generate a random Ethereum account
+        account = Account.create()
+
+        # Get nonce from backend
+        nonce_resp = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = nonce_resp.data["nonce"]
+
+        # Create EIP-4361 message
+        message = self._create_siwe_message(account.address, nonce)
+
+        # Sign message
+        signature = self._sign_message(message, account.key.hex())
+
+        # Verify with backend
+        response = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message,
+            "signature": signature,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertIn("user", response.data)
+
+    def test_verify_creates_user(self):
+        """اولین لاگین با SIWE باید کاربر جدید بسازد."""
+        account = Account.create()
+        nonce_resp = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = nonce_resp.data["nonce"]
+
+        message = self._create_siwe_message(account.address, nonce)
+        signature = self._sign_message(message, account.key.hex())
+
+        response = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message, "signature": signature,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Verify user was created with wallet address
+        from eth_utils import to_checksum_address
+        checksum_addr = to_checksum_address(account.address)
+        user = User.objects.get(wallet_address=checksum_addr)
+        self.assertIsNotNone(user)
+        self.assertEqual(user.wallet_address, checksum_addr)
+
+    def test_verify_existing_wallet_user(self):
+        """لاگین دوباره با wallet قبلی باید همان کاربر را برگرداند."""
+        account = Account.create()
+        from eth_utils import to_checksum_address
+
+        # Create user with wallet address
+        user = User.objects.create_user(
+            username="ethuser",
+            email="eth@test.com",
+            password="TestPass1234!",
+            wallet_address=to_checksum_address(account.address),
+        )
+
+        nonce_resp = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = nonce_resp.data["nonce"]
+
+        message = self._create_siwe_message(account.address, nonce)
+        signature = self._sign_message(message, account.key.hex())
+
+        response = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message, "signature": signature,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["id"], str(user.id))
+
+    def test_verify_invalid_signature(self):
+        """امضای نامعتبر باید خطا بدهد."""
+        nonce_resp = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = nonce_resp.data["nonce"]
+
+        account = Account.create()
+        message = self._create_siwe_message(account.address, nonce)
+
+        response = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message,
+            "signature": "0x" + "00" * 65,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verify_missing_fields(self):
+        """بدون message یا signature باید خطا بدهد."""
+        response = self.client.post("/api/v1/auth/siwe/verify/", {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verify_expired_nonce(self):
+        """nonce استفاده شده نباید دوباره قابل استفاده باشد."""
+        account = Account.create()
+        nonce_resp = self.client.get("/api/v1/auth/siwe/nonce/")
+        nonce = nonce_resp.data["nonce"]
+
+        message = self._create_siwe_message(account.address, nonce)
+        signature = self._sign_message(message, account.key.hex())
+
+        # First verify: should succeed
+        r1 = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message, "signature": signature,
+        })
+        self.assertEqual(r1.status_code, status.HTTP_200_OK)
+
+        # Second verify with same nonce: should fail
+        r2 = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message, "signature": signature,
+        })
+        self.assertEqual(r2.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_verify_nonce_not_from_backend(self):
+        """nonce نامعتبر (ساخته نشده توسط backend) باید خطا بدهد."""
+        account = Account.create()
+
+        message = self._create_siwe_message(account.address, "fake_nonce_12345")
+        signature = self._sign_message(message, account.key.hex())
+
+        response = self.client.post("/api/v1/auth/siwe/verify/", {
+            "message": message, "signature": signature,
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

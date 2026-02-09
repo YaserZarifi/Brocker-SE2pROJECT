@@ -1,6 +1,8 @@
 """
 BourseChain Matching Engine
 Sprint 3 - Price-Time Priority Matching Algorithm
+Sprint 4 - Blockchain Integration (on-chain recording after each match)
+Sprint 5 - WebSocket broadcasting (real-time notifications + stock price updates)
 
 The matching engine follows a price-time priority algorithm:
 - For BUY orders: matches against the cheapest available SELL orders first
@@ -12,6 +14,15 @@ Cash/Stock flow:
 - Sell order creation: stock is reserved (deducted from holdings)
 - Match: buyer gets stock, seller gets cash
 - Cancel: unfilled portion is refunded
+
+Blockchain (Sprint 4):
+- After each match, a Celery task is scheduled (via on_commit) to record
+  the transaction on the private Hardhat Ethereum blockchain.
+- The matching engine itself is NOT blocked by blockchain I/O.
+
+WebSocket (Sprint 5):
+- After each match, notifications are pushed via WebSocket to both parties.
+- Stock price updates are broadcast to all connected clients in real-time.
 """
 
 import logging
@@ -234,6 +245,15 @@ def _execute_match(buy_order, sell_order):
         buy_order, sell_order, matched_qty, execution_price, total_value
     )
 
+    # --- 7. Broadcast stock price update via WebSocket (Sprint 5) ---
+    _schedule_ws_stock_update(stock)
+
+    # --- 8. Schedule blockchain recording (Sprint 4) ---
+    # Uses on_commit so the Celery task fires only after the DB transaction
+    # commits successfully.  If the blockchain is unavailable the task
+    # silently logs a warning and the Transaction keeps blockchain_hash=NULL.
+    _schedule_blockchain_recording(tx)
+
     return tx
 
 
@@ -245,8 +265,22 @@ def _update_order_status(order):
         order.status = Order.OrderStatus.PARTIAL
 
 
+def _schedule_blockchain_recording(tx):
+    """Schedule a Celery task to record the transaction on-chain after DB commit."""
+    try:
+        from blockchain_service.tasks import record_transaction_on_blockchain
+
+        tx_id = str(tx.id)
+        db_transaction.on_commit(
+            lambda: record_transaction_on_blockchain.delay(tx_id)
+        )
+    except Exception as exc:
+        # Never let blockchain scheduling break the matching engine
+        logger.warning("Could not schedule blockchain recording: %s", exc)
+
+
 def _send_match_notifications(buy_order, sell_order, quantity, price, total_value):
-    """Send bilingual notifications to both buyer and seller."""
+    """Send bilingual notifications to both buyer and seller, and broadcast via WebSocket."""
     stock_symbol = buy_order.stock.symbol
     stock_name = buy_order.stock.name
     stock_name_fa = buy_order.stock.name_fa
@@ -255,7 +289,7 @@ def _send_match_notifications(buy_order, sell_order, quantity, price, total_valu
     total_fmt = f"{total_value:,.0f}"
 
     # Notification for buyer
-    Notification.objects.create(
+    buyer_notif = Notification.objects.create(
         user=buy_order.user,
         title=f"Order Matched: Bought {quantity} {stock_symbol}",
         title_fa=f"سفارش تطبیق شد: خرید {quantity} سهم {stock_name_fa}",
@@ -271,7 +305,7 @@ def _send_match_notifications(buy_order, sell_order, quantity, price, total_valu
     )
 
     # Notification for seller
-    Notification.objects.create(
+    seller_notif = Notification.objects.create(
         user=sell_order.user,
         title=f"Order Matched: Sold {quantity} {stock_symbol}",
         title_fa=f"سفارش تطبیق شد: فروش {quantity} سهم {stock_name_fa}",
@@ -285,3 +319,31 @@ def _send_match_notifications(buy_order, sell_order, quantity, price, total_valu
         ),
         type=Notification.NotificationType.ORDER_MATCHED,
     )
+
+    # Sprint 5: Broadcast notifications via WebSocket (scheduled via on_commit)
+    _schedule_ws_notification(buyer_notif)
+    _schedule_ws_notification(seller_notif)
+
+
+def _schedule_ws_notification(notification):
+    """Schedule WebSocket notification broadcast after DB commit."""
+    try:
+        from notifications.utils import broadcast_notification
+
+        # Use a local variable to capture the notification for the lambda
+        notif = notification
+        db_transaction.on_commit(lambda: broadcast_notification(notif))
+    except Exception as exc:
+        logger.warning("Could not schedule WS notification: %s", exc)
+
+
+def _schedule_ws_stock_update(stock):
+    """Schedule WebSocket stock price broadcast after DB commit."""
+    try:
+        from stocks.utils import broadcast_stock_price
+
+        # Capture current stock state for broadcast
+        stock_ref = stock
+        db_transaction.on_commit(lambda: broadcast_stock_price(stock_ref))
+    except Exception as exc:
+        logger.warning("Could not schedule WS stock update: %s", exc)

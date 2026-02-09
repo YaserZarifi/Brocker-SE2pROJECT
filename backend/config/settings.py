@@ -2,6 +2,8 @@
 Django settings for BourseChain project.
 Sprint 2 - Backend API + Database
 Sprint 3 - Matching Engine + Celery
+Sprint 4 - Blockchain Integration
+Sprint 5 - Real-time WebSocket + SIWE
 """
 
 import os
@@ -28,6 +30,7 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").sp
 # =============================================================================
 
 INSTALLED_APPS = [
+    "daphne",  # Sprint 5: ASGI server for WebSocket support (must be before staticfiles)
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -40,6 +43,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
+    "channels",  # Sprint 5: Django Channels for WebSocket
     # Local apps (Modular Monolith - each app = logical microservice)
     "users.apps.UsersConfig",
     "stocks.apps.StocksConfig",
@@ -79,6 +83,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"  # Sprint 5: ASGI for WebSocket
 
 
 # =============================================================================
@@ -222,7 +227,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
 ).split(",")
 
 CORS_ALLOW_CREDENTIALS = True
@@ -262,6 +267,57 @@ CELERY_TASK_EAGER_PROPAGATES = _use_eager  # Propagate exceptions in eager mode
 
 
 # =============================================================================
+# Blockchain Configuration (Sprint 4)
+# =============================================================================
+
+BLOCKCHAIN_ENABLED = os.environ.get("BLOCKCHAIN_ENABLED", "True").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+BLOCKCHAIN_RPC_URL = os.environ.get(
+    "BLOCKCHAIN_RPC_URL", "http://127.0.0.1:8545"
+)
+# Hardhat Account #0 private key — well-known dev-only key, NOT a secret.
+BLOCKCHAIN_PRIVATE_KEY = os.environ.get(
+    "BLOCKCHAIN_PRIVATE_KEY",
+    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+)
+# Set explicitly after deployment, or leave empty to read from contract_address.json
+BLOCKCHAIN_CONTRACT_ADDRESS = os.environ.get("BLOCKCHAIN_CONTRACT_ADDRESS", "")
+
+
+# =============================================================================
+# Django Channels Configuration (Sprint 5)
+# =============================================================================
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
+
+# For production with Redis:
+# if not os.environ.get("USE_LOCMEM_CACHE", "False").lower() in ("true", "1", "yes"):
+#     CHANNEL_LAYERS = {
+#         "default": {
+#             "BACKEND": "channels_redis.core.RedisChannelLayer",
+#             "CONFIG": {
+#                 "hosts": [os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/3")],
+#             },
+#         }
+#     }
+
+
+# =============================================================================
+# SIWE (Sign-In with Ethereum) Configuration (Sprint 5)
+# =============================================================================
+
+SIWE_DOMAIN = os.environ.get("SIWE_DOMAIN", "localhost")
+SIWE_URI = os.environ.get("SIWE_URI", "http://localhost:5173")
+
+
+# =============================================================================
 # Logging Configuration
 # =============================================================================
 
@@ -286,7 +342,27 @@ LOGGING = {
             "level": "INFO",
             "propagate": True,
         },
+        "blockchain_service": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
         "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "notifications": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "stocks": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "users": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": True,

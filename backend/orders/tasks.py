@@ -1,6 +1,7 @@
 """
 Celery tasks for the order matching system.
 Sprint 3 - Async order processing via Celery + RabbitMQ
+Sprint 4 - Blockchain recording is triggered via on_commit in matching.py
 
 In development (CELERY_TASK_ALWAYS_EAGER=True), tasks run synchronously.
 In production, tasks are sent to RabbitMQ and processed by Celery workers.

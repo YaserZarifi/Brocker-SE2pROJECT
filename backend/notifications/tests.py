@@ -7,6 +7,7 @@ BourseChain - تست‌های اعلان‌ها (Notifications)
   - لیست اعلان‌ها
   - علامت‌گذاری خوانده شده
   - شمارش خوانده نشده
+  - Sprint 5: WebSocket consumer + broadcast tests
 
 اجرا:
   python manage.py test notifications -v2
@@ -246,3 +247,145 @@ class TestNotificationAPI(NotificationTestMixin, APITestCase):
         """کاربر بدون لاگین نمی‌تواند اعلان ببیند."""
         response = self.client.get("/api/v1/notifications/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# =============================================================================
+# 4. تست WebSocket Consumer اعلان‌ها (Sprint 5)
+# =============================================================================
+
+
+from channels.testing import WebsocketCommunicator
+from channels.layers import get_channel_layer
+from django.test import TransactionTestCase
+from asgiref.sync import sync_to_async
+import json
+
+
+@override_settings(
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+)
+class TestNotificationWebSocket(TransactionTestCase):
+    """تست‌های WebSocket consumer اعلان‌ها (Sprint 5)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="wsuser",
+            email="ws@test.com",
+            password="TestPass1234!",
+            cash_balance=Decimal("50000000"),
+        )
+
+    def _get_token(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+        return str(AccessToken.for_user(self.user))
+
+    async def _get_communicator(self, token=None):
+        from notifications.consumers import NotificationConsumer
+        from config.ws_auth import JWTAuthMiddleware
+        from channels.routing import URLRouter
+        from django.urls import path
+
+        app = JWTAuthMiddleware(
+            URLRouter([path("ws/notifications/", NotificationConsumer.as_asgi())])
+        )
+        url = f"/ws/notifications/?token={token}" if token else "/ws/notifications/"
+        return WebsocketCommunicator(app, url)
+
+    async def test_authenticated_connection(self):
+        """کاربر احراز هویت شده باید بتواند وصل شود."""
+        token = await sync_to_async(self._get_token)()
+        communicator = await self._get_communicator(token)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        await communicator.disconnect()
+
+    async def test_unauthenticated_connection_rejected(self):
+        """کاربر بدون توکن نباید بتواند وصل شود."""
+        communicator = await self._get_communicator()
+        connected, _ = await communicator.connect()
+        # Should be rejected (close sent)
+        self.assertFalse(connected)
+
+    async def test_invalid_token_rejected(self):
+        """توکن نامعتبر باید رد شود."""
+        communicator = await self._get_communicator("invalid-token-123")
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+
+    async def test_receive_notification_via_channel_layer(self):
+        """اعلان از طریق channel layer باید به کاربر برسد."""
+        token = await sync_to_async(self._get_token)()
+        communicator = await self._get_communicator(token)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+
+        # Send notification via channel layer
+        channel_layer = get_channel_layer()
+        user_id = str(self.user.id)
+        await channel_layer.group_send(
+            f"notifications_{user_id}",
+            {
+                "type": "notification.message",
+                "data": {
+                    "id": "test-uuid",
+                    "title": "Test Notification",
+                    "titleFa": "اعلان تست",
+                    "message": "Test message",
+                    "messageFa": "پیام تست",
+                    "type": "system",
+                    "read": False,
+                    "createdAt": "2026-01-01T00:00:00Z",
+                },
+            },
+        )
+
+        response = await communicator.receive_json_from()
+        self.assertEqual(response["type"], "notification")
+        self.assertEqual(response["data"]["title"], "Test Notification")
+        self.assertEqual(response["data"]["titleFa"], "اعلان تست")
+        self.assertFalse(response["data"]["read"])
+
+        await communicator.disconnect()
+
+
+# =============================================================================
+# 5. تست broadcast utility (Sprint 5)
+# =============================================================================
+
+
+@override_settings(
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+)
+class TestNotificationBroadcast(NotificationTestMixin, TestCase):
+    """تست broadcast اعلان از طریق utility function."""
+
+    def test_broadcast_notification_does_not_raise(self):
+        """broadcast_notification نباید exception ایجاد کند."""
+        notif = Notification.objects.create(
+            user=self.buyer,
+            title="Test",
+            title_fa="تست",
+            message="Test msg",
+            message_fa="پیام تست",
+            type="system",
+        )
+        from notifications.utils import broadcast_notification
+        # Should not raise even if no consumers are connected
+        broadcast_notification(notif)
+
+    def test_broadcast_returns_without_error(self):
+        """broadcast حتی بدون consumer متصل باید بدون خطا اجرا شود."""
+        notif = Notification.objects.create(
+            user=self.buyer,
+            title="Silent",
+            title_fa="بدون خطا",
+            message="msg",
+            message_fa="پیام",
+            type="system",
+        )
+        from notifications.utils import broadcast_notification
+        try:
+            broadcast_notification(notif)
+        except Exception:
+            self.fail("broadcast_notification raised an exception")

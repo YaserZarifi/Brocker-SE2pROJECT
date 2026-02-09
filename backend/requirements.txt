@@ -11,3 +11,8 @@ Pillow>=11.0,<12.0
 python-decouple>=3.8,<4.0
 drf-spectacular>=0.28,<1.0
 gunicorn>=23.0,<24.0
+# Sprint 4 - Blockchain Integration
+web3>=6.0,<8.0
+# Sprint 5 - Real-time WebSocket + SIWE
+channels[daphne]>=4.0,<5.0
+siwe>=4.0,<5.0

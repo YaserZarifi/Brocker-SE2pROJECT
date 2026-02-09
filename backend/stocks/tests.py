@@ -216,3 +216,132 @@ class TestMarketStatsAPI(APITestCase):
         self.assertEqual(data["totalStocks"], 2)
         self.assertEqual(data["gainers"], 1)   # FOLD
         self.assertEqual(data["losers"], 1)    # SHPN
+
+
+# =============================================================================
+# 5. تست WebSocket Consumer سهام (Sprint 5)
+# =============================================================================
+
+
+from channels.testing import WebsocketCommunicator
+from channels.layers import get_channel_layer
+from django.test import TransactionTestCase, override_settings
+
+
+@override_settings(
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+)
+class TestStockPriceWebSocket(TransactionTestCase):
+    """تست‌های WebSocket consumer قیمت سهام (Sprint 5)."""
+
+    async def _get_communicator(self):
+        from stocks.consumers import StockPriceConsumer
+        from channels.routing import URLRouter
+        from django.urls import path
+
+        app = URLRouter([path("ws/stocks/", StockPriceConsumer.as_asgi())])
+        return WebsocketCommunicator(app, "/ws/stocks/")
+
+    async def test_public_connection(self):
+        """هر کسی بدون احراز هویت باید بتواند وصل شود."""
+        communicator = await self._get_communicator()
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        await communicator.disconnect()
+
+    async def test_receive_stock_price_update(self):
+        """آپدیت قیمت سهم از طریق channel layer باید به client برسد."""
+        communicator = await self._get_communicator()
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+
+        # Broadcast stock price update via channel layer
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            "stock_prices",
+            {
+                "type": "stock.price.update",
+                "data": {
+                    "symbol": "FOLD",
+                    "currentPrice": 9000.0,
+                    "previousClose": 8750.0,
+                    "change": 250.0,
+                    "changePercent": 2.86,
+                    "volume": 46000000,
+                    "high24h": 9050.0,
+                    "low24h": 8600.0,
+                },
+            },
+        )
+
+        response = await communicator.receive_json_from()
+        self.assertEqual(response["type"], "stock_update")
+        self.assertEqual(response["data"]["symbol"], "FOLD")
+        self.assertEqual(response["data"]["currentPrice"], 9000.0)
+        self.assertEqual(response["data"]["change"], 250.0)
+
+        await communicator.disconnect()
+
+    async def test_multiple_clients_receive_update(self):
+        """چند client باید همزمان آپدیت دریافت کنند."""
+        comm1 = await self._get_communicator()
+        comm2 = await self._get_communicator()
+
+        connected1, _ = await comm1.connect()
+        connected2, _ = await comm2.connect()
+        self.assertTrue(connected1)
+        self.assertTrue(connected2)
+
+        channel_layer = get_channel_layer()
+        await channel_layer.group_send(
+            "stock_prices",
+            {
+                "type": "stock.price.update",
+                "data": {"symbol": "SHPN", "currentPrice": 4500.0},
+            },
+        )
+
+        resp1 = await comm1.receive_json_from()
+        resp2 = await comm2.receive_json_from()
+
+        self.assertEqual(resp1["data"]["symbol"], "SHPN")
+        self.assertEqual(resp2["data"]["symbol"], "SHPN")
+
+        await comm1.disconnect()
+        await comm2.disconnect()
+
+
+# =============================================================================
+# 6. تست broadcast utility سهام (Sprint 5)
+# =============================================================================
+
+
+@override_settings(
+    CHANNEL_LAYERS={"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}},
+)
+class TestStockPriceBroadcast(TestCase):
+    """تست broadcast قیمت سهم از طریق utility function."""
+
+    def setUp(self):
+        self.stock = Stock.objects.create(
+            symbol="FOLD", name="Foolad", name_fa="فولاد مبارکه",
+            current_price=Decimal("9000"), previous_close=Decimal("8750"),
+            change=Decimal("250"), change_percent=Decimal("2.86"),
+            volume=46000000, market_cap=2700000000,
+            high_24h=Decimal("9050"), low_24h=Decimal("8600"),
+            open_price=Decimal("8530"),
+            sector="Metals", sector_fa="فلزات",
+        )
+
+    def test_broadcast_stock_price_does_not_raise(self):
+        """broadcast_stock_price نباید exception ایجاد کند."""
+        from stocks.utils import broadcast_stock_price
+        broadcast_stock_price(self.stock)
+
+    def test_broadcast_returns_without_error(self):
+        """broadcast حتی بدون consumer متصل باید بدون خطا اجرا شود."""
+        from stocks.utils import broadcast_stock_price
+        try:
+            broadcast_stock_price(self.stock)
+        except Exception:
+            self.fail("broadcast_stock_price raised an exception")
