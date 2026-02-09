@@ -5,6 +5,7 @@
 - **استاد**: دکتر گوهری
 - **فایل نیازمندی‌ها**: `SE_PRJCT.pdf` (11 صفحه)
 - **نام محصول**: BourseChain (بورس‌چین)
+- **GitHub**: `https://github.com/YaserZarifi/Brocker-SE2pROJECT.git`
 
 ---
 
@@ -13,48 +14,30 @@
 
 ---
 
-## Tech Stack (تصمیم‌گیری شده)
+## Tech Stack
 
 | لایه | تکنولوژی | وضعیت |
 |---|---|---|
-| **Frontend** | React 19 + Vite 7 + TypeScript + Tailwind CSS v4 + shadcn-style UI | ✅ انجام شده |
-| **UI Components** | Radix UI primitives + CVA + Tailwind (shadcn-style) | ✅ انجام شده |
-| **State Management** | Zustand v5 | ✅ انجام شده |
-| **Routing** | React Router v7 | ✅ انجام شده |
-| **Charts** | Recharts v3 | ✅ انجام شده |
-| **i18n** | i18next + react-i18next (FA/EN دوزبانه با RTL) | ✅ انجام شده |
-| **Icons** | Lucide React | ✅ انجام شده |
-| **Backend** | Django 5.2 + DRF 3.16 + simplejwt | ✅ Sprint 2 (DONE) |
-| **Database** | PostgreSQL (+ SQLite for dev) | ✅ Sprint 2 (DONE) |
-| **Cache/Session** | Redis (+ LocMem for dev) | ✅ Sprint 2 (DONE) |
+| **Frontend** | React 19 + Vite 7 + TypeScript + Tailwind CSS v4 + shadcn-style UI | ✅ Sprint 1 |
+| **UI Components** | Radix UI primitives + CVA + Tailwind (shadcn-style) | ✅ Sprint 1 |
+| **State Management** | Zustand v5 | ✅ Sprint 1 |
+| **Routing** | React Router v7 | ✅ Sprint 1 |
+| **Charts** | Recharts v3 | ✅ Sprint 1 |
+| **i18n** | i18next + react-i18next (FA/EN دوزبانه با RTL) | ✅ Sprint 1 |
+| **Icons** | Lucide React | ✅ Sprint 1 |
+| **HTTP Client** | Axios (JWT auto-refresh interceptor) | ✅ Sprint 2 |
+| **Backend** | Django 5.2 + DRF 3.16 + simplejwt | ✅ Sprint 2 |
+| **Database** | PostgreSQL (+ SQLite for dev) | ✅ Sprint 2 |
+| **Cache/Session** | Redis (+ LocMem for dev) | ✅ Sprint 2 |
+| **API Docs** | drf-spectacular (Swagger UI) | ✅ Sprint 2 |
 | **Message Broker** | RabbitMQ (via Celery) | ⏳ Sprint 3 |
 | **Blockchain** | Hardhat + Ethers.js + Solidity (ERC20/ERC1155) | ⏳ Sprint 4 |
 | **Real-time** | Django Channels + WebSocket | ⏳ Sprint 5 |
-| **Container** | Docker + Docker Compose (برای ارائه نهایی) | ⏳ Sprint 6 |
-| **Orchestration** | Kubernetes manifests (فقط فایل‌ها، اجرا نیاز نیست) | ⏳ Sprint 6 |
+| **Container** | Docker + Docker Compose | ⏳ Sprint 6 |
+| **Orchestration** | Kubernetes manifests (فقط فایل‌ها) | ⏳ Sprint 6 |
 | **Monitoring** | Prometheus + Grafana (config only) | ⏳ Sprint 6 |
 | **IaC (امتیازی)** | Terraform | ⏳ Sprint 6 |
 | **Login امتیازی** | SIWE (Sign-In with Ethereum) via EIP-4361 | ⏳ Sprint 5 |
-
----
-
-## معماری: Modular Monolith
-
-یک پروژه Django با اپ‌های جدا (هر اپ = یک میکروسرویس منطقی):
-
-```
-backend/
-├── config/                  # Django project settings
-├── users/                   # User Management Service
-├── stocks/                  # Stock Service (قیمت‌ها، لیست سهام)
-├── orders/                  # Order Service + Matching Engine
-├── transactions/            # Transaction Service
-├── notifications/           # Notification Service (Django Channels/WebSocket)
-└── blockchain_service/      # Blockchain Integration (Web3.py + Hardhat)
-```
-
-ارتباط بین سرویس‌ها از طریق **RabbitMQ/Celery** (مثل میکروسرویس واقعی).
-برای ارائه نهایی: **Docker Compose** برای بسته‌بندی همه چیز.
 
 ---
 
@@ -63,126 +46,106 @@ backend/
 ```
 d:\Amirkabir\SE2\Project\
 ├── CONTEXT.md               # ← این فایل
-├── SE_PRJCT.pdf             # نیازمندی‌های پروژه (11 صفحه)
-├── diagrams/                # دیاگرام‌های UML
+├── SE_PRJCT.pdf             # نیازمندی‌های پروژه
+├── diagrams/                # دیاگرام‌های UML (✅ همه انجام شده)
 │   ├── *.puml               # PlantUML source files
 │   ├── EA/                  # Enterprise Architect diagrams (.png)
 │   └── out/                 # Rendered SVGs
-├── frontend/                # ✅ React Frontend (Sprint 1 - DONE)
+│
+├── frontend/                # ✅ React Frontend (Sprint 1 + 2)
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── ui/          # shadcn-style: button, card, input, badge, tabs, tooltip, avatar, progress, separator, scroll-area
 │   │   │   ├── layout/      # Sidebar, Header, MainLayout
 │   │   │   └── common/      # ThemeToggle, LanguageToggle, Logo
 │   │   ├── pages/           # LoginPage, RegisterPage, DashboardPage, MarketPage, StockDetailPage, PortfolioPage, OrdersPage, TransactionsPage, NotificationsPage, AdminPage
-│   │   ├── stores/          # Zustand: authStore, themeStore, stockStore, notificationStore
-│   │   ├── services/        # mockData.ts (12 سهم ایرانی، portfolio, orders, transactions, notifications, orderBook, priceHistory generators)
+│   │   ├── stores/          # Zustand: authStore, themeStore, stockStore, notificationStore (← connected to API)
+│   │   ├── services/
+│   │   │   ├── api.ts           # Axios instance + JWT token management + auto-refresh interceptor
+│   │   │   ├── authService.ts   # login, register, getProfile
+│   │   │   ├── stockService.ts  # getStocks, getStock, getPriceHistory, getMarketStats
+│   │   │   ├── orderService.ts  # getOrders, createOrder, cancelOrder, getPortfolio, getOrderBook
+│   │   │   ├── transactionService.ts  # getTransactions
+│   │   │   ├── notificationService.ts # getNotifications, markAsRead, markAllAsRead, getUnreadCount
+│   │   │   └── mockData.ts      # Fallback generators: generatePriceHistory(), generateOrderBook()
 │   │   ├── i18n/            # en.json + fa.json + index.ts
 │   │   ├── types/           # TypeScript interfaces: User, Stock, Order, Transaction, Portfolio, Notification, OrderBook, PriceHistory, MarketStats
 │   │   ├── lib/             # utils.ts (cn, formatPrice, formatNumber, formatPercent, getChangeColor, ...)
 │   │   ├── router.tsx       # React Router config
-│   │   ├── App.tsx          # Root component
+│   │   ├── App.tsx          # Root component (checkAuth on load, fetchNotifications when authenticated)
 │   │   ├── main.tsx         # Entry point
 │   │   └── index.css        # Tailwind v4 + CSS variables (dark/light themes)
 │   ├── index.html
-│   ├── vite.config.ts       # Vite + Tailwind plugin + path aliases (@/)
-│   ├── tsconfig.app.json    # TypeScript config with path aliases
+│   ├── vite.config.ts       # Vite + Tailwind + path aliases + proxy /api → localhost:8000
 │   └── package.json
-├── backend/                 # ✅ Sprint 2 (DONE)
-├── contracts/               # ⏳ هنوز ساخته نشده (Solidity)
-├── docker/                  # ⏳ هنوز ساخته نشده
-├── k8s/                     # ⏳ هنوز ساخته نشده
-└── terraform/               # ⏳ هنوز ساخته نشده
+│
+├── backend/                 # ✅ Django Backend (Sprint 2)
+│   ├── config/              # Django project settings, urls, wsgi, asgi
+│   │   └── settings.py      # PostgreSQL, Redis, JWT, CORS, Celery configs
+│   ├── users/               # Custom User model (UUID PK, email login, JWT auth, role, wallet_address, cash_balance)
+│   │   ├── models.py        # User(AbstractUser) with Role choices
+│   │   ├── serializers.py   # UserSerializer, UserRegistrationSerializer, AdminUserSerializer
+│   │   ├── views.py         # RegisterView, ProfileView, ChangePasswordView, AdminUserListView
+│   │   └── urls.py          # /auth/login/, /auth/register/, /auth/refresh/, /auth/profile/, /auth/users/
+│   ├── stocks/              # Stock + PriceHistory models
+│   │   ├── models.py        # Stock (symbol, name, name_fa, prices, volume, sector, ...), PriceHistory (OHLCV)
+│   │   ├── serializers.py   # StockSerializer (camelCase for frontend), PriceHistorySerializer, MarketStatsSerializer
+│   │   ├── views.py         # StockListView, StockDetailView, StockPriceHistoryView, market_stats, AdminStockViews
+│   │   ├── urls.py          # /stocks/, /stocks/stats/, /stocks/<symbol>/, /stocks/<symbol>/history/
+│   │   └── management/commands/seed_data.py  # Seeds 12 stocks + users + orders + transactions + notifications
+│   ├── orders/              # Order + PortfolioHolding models
+│   │   ├── models.py        # Order (buy/sell, pending/matched/partial/cancelled/expired), PortfolioHolding
+│   │   ├── serializers.py   # OrderSerializer, OrderCreateSerializer, PortfolioSerializer, OrderBookSerializer
+│   │   ├── views.py         # OrderListView, OrderCreateView, OrderCancelView, portfolio_view, order_book_view
+│   │   └── urls.py          # /orders/, /orders/create/, /orders/<id>/cancel/, /orders/portfolio/, /orders/book/<symbol>/
+│   ├── transactions/        # Transaction model (matched buy+sell)
+│   │   ├── models.py        # Transaction (buy_order, sell_order, stock, price, qty, blockchain_hash, status)
+│   │   ├── serializers.py   # TransactionSerializer (camelCase)
+│   │   ├── views.py         # TransactionListView, TransactionDetailView
+│   │   └── urls.py          # /transactions/, /transactions/<id>/
+│   ├── notifications/       # Notification model (bilingual FA/EN)
+│   │   ├── models.py        # Notification (title, title_fa, message, message_fa, type, read)
+│   │   ├── serializers.py   # NotificationSerializer (camelCase)
+│   │   ├── views.py         # NotificationListView, mark_all_read, unread_count
+│   │   └── urls.py          # /notifications/, /notifications/mark-all-read/, /notifications/unread-count/
+│   ├── blockchain_service/  # Placeholder for Sprint 4
+│   ├── requirements.txt     # Django 5, DRF, simplejwt, cors-headers, django-filter, psycopg2, redis, celery, Pillow, drf-spectacular
+│   ├── manage.py
+│   ├── .env.example
+│   └── .gitignore
+│
+├── contracts/               # ⏳ Sprint 4 (Solidity)
+├── docker/                  # ⏳ Sprint 6
+├── k8s/                     # ⏳ Sprint 6
+└── terraform/               # ⏳ Sprint 6
 ```
 
 ---
 
-## Frontend - جزئیات فنی
+## اجرای پروژه (Development)
 
-### اجرا
-```bash
-cd frontend
-npm install
-npm run dev     # → http://localhost:5173
-```
-
-### Theme System
-- CSS variables در `:root` (light) و `.dark` (dark)
-- رنگ‌های سفارشی: `--stock-up` (سبز), `--stock-down` (قرمز), `--sidebar`, `--chart-*`
-- Tailwind v4 با `@theme inline` برای رجیستر کردن CSS vars به عنوان utility classes
-- Toggle: `useThemeStore` → `toggleTheme()`
-
-### i18n (دوزبانه)
-- فارسی (RTL) + انگلیسی (LTR)
-- `dir` attribute روی `<html>` تغییر می‌کنه
-- فونت: Inter (EN) + Vazirmatn (FA) از Google Fonts
-- Toggle: `useThemeStore` → `toggleLanguage()`
-
-### Mock Data
-- **12 سهم ایرانی** با نام فارسی و انگلیسی (FOLD, SHPN, KGDR, FMLI, SHBN, IKCO, SSEP, TAPK, PTRO, MKBT, SSAN, ZINC)
-- **Real-time price simulation**: هر 3 ثانیه قیمت‌ها آپدیت میشن
-- **Portfolio**: 5 هلدینگ با سود/زیان
-- **Orders**: 6 سفارش با وضعیت‌های مختلف
-- **Transactions**: 5 تراکنش تأیید شده با blockchain hash
-- **Notifications**: 5 اعلان با انواع مختلف
-- **Generator functions**: `generatePriceHistory()`, `generateOrderBook()`
-
-### صفحات
-1. **Login** (`/login`): فرم ورود + SIWE (Sign-In with Ethereum) button
-2. **Register** (`/register`): فرم ثبت‌نام
-3. **Dashboard** (`/dashboard`): 4 stat card + market index chart + portfolio summary + top gainers/losers + recent transactions
-4. **Market** (`/market`): جستجو + فیلتر sector + sort + جدول سهام با real-time prices
-5. **Stock Detail** (`/market/:symbol`): price chart + stats grid + order book (visual depth) + trade panel (buy/sell)
-6. **Portfolio** (`/portfolio`): summary cards + holdings table + allocation pie chart
-7. **Orders** (`/orders`): filter tabs + orders table with status badges
-8. **Transactions** (`/transactions`): summary cards + table with blockchain hash links
-9. **Notifications** (`/notifications`): notification list with read/unread + mark all read
-10. **Admin** (`/admin`): stats + stocks management table + users table
-
----
-
-## Backend - جزئیات فنی (Sprint 2)
-
-### اجرا
-```bash
+### Backend
+```powershell
 cd backend
+# اگه venv نداری:
 python -m venv venv
-.\venv\Scripts\activate  # Windows
+.\venv\Scripts\activate
 pip install -r requirements.txt
 
-# Development (بدون PostgreSQL/Redis):
+# اجرا با SQLite (بدون PostgreSQL/Redis):
 $env:USE_SQLITE="True"
 $env:USE_LOCMEM_CACHE="True"
 python manage.py migrate
-python manage.py seed_data
-python manage.py runserver 8000   # → http://localhost:8000
+python manage.py seed_data          # 12 سهم + کاربران + سفارشات + تراکنش‌ها + اعلان‌ها
+python manage.py runserver 8000     # → http://localhost:8000
 ```
 
-### API Endpoints
-
-| Endpoint | Method | Description | Auth |
-|---|---|---|---|
-| `/api/v1/auth/login/` | POST | JWT login (email + password) | No |
-| `/api/v1/auth/register/` | POST | Register new user | No |
-| `/api/v1/auth/refresh/` | POST | Refresh JWT token | No |
-| `/api/v1/auth/profile/` | GET/PUT | User profile | Yes |
-| `/api/v1/auth/change-password/` | PUT | Change password | Yes |
-| `/api/v1/auth/users/` | GET | Admin: list users | Admin |
-| `/api/v1/stocks/` | GET | List all stocks | No |
-| `/api/v1/stocks/stats/` | GET | Market statistics | No |
-| `/api/v1/stocks/<symbol>/` | GET | Stock detail | No |
-| `/api/v1/stocks/<symbol>/history/` | GET | Price history (30 days) | No |
-| `/api/v1/orders/` | GET | List user orders | Yes |
-| `/api/v1/orders/create/` | POST | Create new order | Yes |
-| `/api/v1/orders/<id>/cancel/` | PUT | Cancel pending order | Yes |
-| `/api/v1/orders/portfolio/` | GET | User portfolio | Yes |
-| `/api/v1/orders/book/<symbol>/` | GET | Order book for stock | No |
-| `/api/v1/transactions/` | GET | List user transactions | Yes |
-| `/api/v1/notifications/` | GET | List notifications | Yes |
-| `/api/v1/notifications/mark-all-read/` | POST | Mark all read | Yes |
-| `/api/v1/notifications/unread-count/` | GET | Unread count | Yes |
-| `/api/v1/blockchain/status/` | GET | Blockchain status | No |
-| `/api/docs/` | GET | Swagger API documentation | No |
+### Frontend
+```powershell
+cd frontend
+npm install
+npm run dev     # → http://localhost:5173 (proxy /api → :8000)
+```
 
 ### Test Users
 | Email | Password | Role |
@@ -190,13 +153,64 @@ python manage.py runserver 8000   # → http://localhost:8000
 | `ali@example.com` | `Test1234!` | Customer |
 | `admin@boursechain.ir` | `Admin1234!` | Admin |
 
-### Django Apps (Modular Monolith)
-- **users**: Custom User model (UUID PK, email login, role, wallet_address, cash_balance)
-- **stocks**: Stock + PriceHistory models, market stats
-- **orders**: Order + PortfolioHolding models, order book
-- **transactions**: Transaction model (buy/sell matching records)
-- **notifications**: Notification model (bilingual FA/EN)
-- **blockchain_service**: Placeholder for Sprint 4
+---
+
+## API Endpoints (Sprint 2)
+
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/api/v1/auth/login/` | POST | No | JWT login (email + password) → {access, refresh} |
+| `/api/v1/auth/register/` | POST | No | Register new user |
+| `/api/v1/auth/refresh/` | POST | No | Refresh JWT token |
+| `/api/v1/auth/profile/` | GET/PUT | Yes | User profile |
+| `/api/v1/auth/change-password/` | PUT | Yes | Change password |
+| `/api/v1/auth/users/` | GET | Admin | List all users |
+| `/api/v1/auth/users/<uuid>/` | GET/PUT | Admin | User detail |
+| `/api/v1/stocks/` | GET | No | List all stocks (camelCase response) |
+| `/api/v1/stocks/stats/` | GET | No | Market statistics |
+| `/api/v1/stocks/<symbol>/` | GET | No | Stock detail |
+| `/api/v1/stocks/<symbol>/history/` | GET | No | Price history (?days=30) |
+| `/api/v1/stocks/admin/manage/` | GET/POST | Admin | Admin stock management |
+| `/api/v1/orders/` | GET | Yes | List user orders |
+| `/api/v1/orders/create/` | POST | Yes | Create order {stock_symbol, type, price, quantity} |
+| `/api/v1/orders/<uuid>/cancel/` | PUT | Yes | Cancel pending order |
+| `/api/v1/orders/portfolio/` | GET | Yes | User portfolio + holdings + P&L |
+| `/api/v1/orders/book/<symbol>/` | GET | No | Order book (aggregated bids/asks) |
+| `/api/v1/transactions/` | GET | Yes | List user transactions |
+| `/api/v1/transactions/<uuid>/` | GET | Yes | Transaction detail |
+| `/api/v1/notifications/` | GET | Yes | List notifications |
+| `/api/v1/notifications/<uuid>/` | GET/PATCH | Yes | Notification detail / mark read |
+| `/api/v1/notifications/mark-all-read/` | POST | Yes | Mark all read |
+| `/api/v1/notifications/unread-count/` | GET | Yes | Unread count |
+| `/api/v1/blockchain/status/` | GET | No | Blockchain service status (placeholder) |
+| `/api/docs/` | GET | No | Swagger UI documentation |
+| `/api/schema/` | GET | No | OpenAPI schema |
+
+---
+
+## Frontend ↔ Backend Integration (Sprint 2)
+
+### چگونه وصل شدن:
+1. **Vite Proxy**: در `vite.config.ts` → `/api` proxy به `http://127.0.0.1:8000`
+2. **Axios Client**: `frontend/src/services/api.ts` → JWT token در localStorage، auto-refresh interceptor
+3. **Service Layer**: هر domain یه service file داره (authService, stockService, orderService, ...)
+4. **Stores**: Zustand stores از service ها fetch می‌کنن (نه دیگه از mockData)
+5. **Pages**: همه صفحات از store ها و service ها استفاده می‌کنن
+6. **DRF Serializers**: camelCase field names برای frontend compatibility (مثلا `currentPrice` بجای `current_price`)
+
+### Auth Flow:
+1. User → POST `/auth/login/` (email, password) → {access, refresh}
+2. Tokens ذخیره در localStorage
+3. هر request → `Authorization: Bearer <access>` header
+4. اگه 401 → auto-refresh با refresh token
+5. اگه refresh هم fail → redirect به `/login`
+6. `App.tsx` → `checkAuth()` on mount → اگه token داشت profile رو fetch کن
+
+### Order Flow:
+1. User → POST `/orders/create/` {stock_symbol, type:"buy"|"sell", price, quantity}
+2. Backend validate: cash balance (buy) یا holdings (sell)
+3. Order ساخته میشه با status=pending
+4. ⏳ Sprint 3: Matching Engine اتوماتیک match می‌کنه
 
 ---
 
@@ -204,26 +218,29 @@ python manage.py runserver 8000   # → http://localhost:8000
 
 ### ✅ Sprint 1 - Frontend (DONE)
 - React + Vite + Tailwind + shadcn-style UI
-- تمام صفحات با Mock Data
+- تمام 10 صفحه با Mock Data
 - Dark/Light theme + FA/EN bilingual + RTL
 - Real-time price simulation
 - Charts (Area, Pie)
 
-### ✅ Sprint 2 - Backend API + Database (DONE)
-- Django project setup با اپ‌های جدا (users, stocks, orders, transactions, notifications, blockchain_service)
-- PostgreSQL + Redis setup (+ SQLite/LocMem fallback for dev)
-- Django REST Framework APIs (all endpoints)
-- User authentication (JWT via simplejwt)
-- CRUD for stocks, orders, transactions, notifications
-- Management command: `python manage.py seed_data` (mirrors frontend mockData.ts)
-- API Documentation: Swagger UI at `/api/docs/`
-- ⏳ اتصال Frontend به Backend API (جایگزینی Mock Data) - remaining task
+### ✅ Sprint 2 - Backend API + Database + Frontend Integration (DONE)
+- Django project: 6 apps (users, stocks, orders, transactions, notifications, blockchain_service)
+- PostgreSQL + Redis (+ SQLite/LocMem fallback)
+- Django REST Framework: 20+ endpoints
+- JWT authentication (simplejwt)
+- seed_data command (12 سهم ایرانی + mock data)
+- Swagger API docs (`/api/docs/`)
+- Frontend: Axios + service layer + stores connected to API
+- Vite proxy + JWT auto-refresh
 
-### ⏳ Sprint 3 - Matching Engine + Order System
+### ⏳ Sprint 3 - Matching Engine + Order System (بعدی)
 - Order matching algorithm (price-time priority)
 - Celery + RabbitMQ for async processing
-- Order status updates
+- وقتی buy و sell با قیمت مناسب وجود داره → اتوماتیک Transaction بسازه
+- Order status updates (pending → matched/partial)
 - Partial fill support
+- آپدیت PortfolioHolding و cash_balance بعد از match
+- ارسال Notification بعد از match
 
 ### ⏳ Sprint 4 - Blockchain Integration
 - Hardhat project setup
@@ -243,27 +260,24 @@ python manage.py runserver 8000   # → http://localhost:8000
 - Kubernetes manifests
 - Prometheus + Grafana config
 - Terraform IaC (bonus)
-- Incident management documentation
-- Risk analysis document
-- Vision document
-- Test plan + test cases
+- مستندات: Risk Analysis, Vision, Test Plan, Burndown, Incident Postmortem, Sprint Reports
 
 ---
 
 ## ویژگی‌های اصلی (از PDF نیازمندی‌ها)
 
 ### اجباری
-1. مشاهده لیست سهام
-2. ثبت سفارش خرید/فروش + Matching Engine
-3. اعلان لحظه‌ای وضعیت سفارش‌ها (WebSocket)
-4. ثبت تراکنش در بلاکچین خصوصی (EVM + Smart Contract)
-5. نمایش سبد سهام و وضعیت معاملات
+1. ✅ مشاهده لیست سهام
+2. ⏳ ثبت سفارش خرید/فروش + Matching Engine (Sprint 3)
+3. ⏳ اعلان لحظه‌ای وضعیت سفارش‌ها - WebSocket (Sprint 5)
+4. ⏳ ثبت تراکنش در بلاکچین خصوصی - EVM + Smart Contract (Sprint 4)
+5. ✅ نمایش سبد سهام و وضعیت معاملات
 
 ### امتیازی
-1. ورود با اتریوم (SIWE - EIP-4361)
-2. Matching Engine غیرمتمرکز روی بلاکچین
-3. Infrastructure as Code (Terraform)
-4. گزارش‌های Sprint
+1. ⏳ ورود با اتریوم (SIWE - EIP-4361) (Sprint 5)
+2. ⏳ Matching Engine غیرمتمرکز روی بلاکچین
+3. ⏳ Infrastructure as Code - Terraform (Sprint 6)
+4. ⏳ گزارش‌های Sprint
 
 ### مستندات مورد نیاز
 1. سند تحلیل ریسک (Risk Analysis)
@@ -287,19 +301,21 @@ python manage.py runserver 8000   # → http://localhost:8000
 
 1. **Modular Monolith نه Full Microservice**: یک Django project با اپ‌های جدا. Docker فقط برای ارائه نهایی.
 2. **Hardhat برای بلاکچین**: ساده‌ترین و مناسب‌ترین برای پروژه دانشگاهی. Local Ethereum node.
-3. **RabbitMQ + Celery**: برای ارتباط غیرهمزمان بین سرویس‌ها (ایمیل/اعلان/matching).
-4. **shadcn-style components**: بجای نصب shadcn/ui CLI، کامپوننت‌ها دستی با Radix + CVA + Tailwind نوشته شدن.
+3. **RabbitMQ + Celery**: برای ارتباط غیرهمزمان بین سرویس‌ها (matching/اعلان).
+4. **shadcn-style components**: کامپوننت‌ها دستی با Radix + CVA + Tailwind نوشته شدن.
 5. **Dark mode پیش‌فرض**: مناسب پلتفرم مالی/بورسی.
 6. **Font**: Inter (EN) + Vazirmatn (FA).
+7. **camelCase API**: DRF serializers فیلدها رو camelCase برمی‌گردونن تا مستقیم با TypeScript types match بشن.
+8. **SQLite/LocMem fallback**: برای dev بدون نیاز به PostgreSQL/Redis.
 
 ---
 
 ## نکات مهم برای ادامه کار
 
-- وقتی Backend ساخته شد، Mock Data در `frontend/src/services/mockData.ts` باید با API calls جایگزین بشن
-- Stores در `frontend/src/stores/` باید API integration بگیرن
-- Types در `frontend/src/types/index.ts` با backend models هماهنگ باشن
+- **Sprint 3 بعدیه**: Matching Engine باید در `backend/orders/` ساخته بشه (Celery task)
 - فایل `SE_PRJCT.pdf` را برای نیازمندی‌های دقیق هر بخش بخوان
 - دیاگرام‌ها در `diagrams/` هستن (PlantUML + EA PNG)
-- برای backend از **Django 5 + DRF + Channels + Celery** استفاده کن
-- برای blockchain از **Hardhat + Solidity + Ethers.js/Web3.py** استفاده کن
+- Backend virtual env: `backend/venv/` (در .gitignore هست)
+- Database: `backend/db.sqlite3` (در .gitignore هست) - `python manage.py seed_data` برای rebuild
+- Frontend mock data هنوز موجوده در `mockData.ts` به عنوان fallback (generatePriceHistory, generateOrderBook)
+- همه صفحات فرانت الان به API واقعی وصلن (فقط price simulation هنوز client-side هست تا Sprint 5 WebSocket)
