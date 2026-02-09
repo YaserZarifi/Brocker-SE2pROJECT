@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Shield,
@@ -12,13 +13,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { mockStocks, mockOrders, mockTransactions } from "@/services/mockData";
+import { useStockStore } from "@/stores/stockStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { orderService } from "@/services/orderService";
+import { transactionService } from "@/services/transactionService";
 import { formatPrice, formatCompactNumber } from "@/lib/utils";
+import type { Order, Transaction, Stock } from "@/types";
 
 export default function AdminPage() {
   const { t } = useTranslation();
   const { language } = useThemeStore();
+  const { stocks, fetchStocks } = useStockStore();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    if (stocks.length === 0) fetchStocks();
+    orderService.getOrders().then(setOrders).catch(() => {});
+    transactionService.getTransactions().then(setTransactions).catch(() => {});
+  }, []);
+
+  const mockStocks = stocks;
+  const mockOrders = orders;
+  const mockTransactions = transactions;
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
@@ -24,9 +24,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useStockStore } from "@/stores/stockStore";
-import { mockPortfolio, mockTransactions, generatePriceHistory } from "@/services/mockData";
-import { formatPrice, formatCompactNumber, formatPercent, cn, getChangeColor } from "@/lib/utils";
 import { useThemeStore } from "@/stores/themeStore";
+import { orderService } from "@/services/orderService";
+import { transactionService } from "@/services/transactionService";
+import { stockService } from "@/services/stockService";
+import { generatePriceHistory } from "@/services/mockData";
+import { formatPrice, formatCompactNumber, formatPercent, cn, getChangeColor } from "@/lib/utils";
+import type { Portfolio, Transaction, PriceHistory } from "@/types";
 
 const indexHistory = generatePriceHistory(2_187_450, 30).map((p) => ({
   date: p.timestamp.slice(5),
@@ -36,8 +40,18 @@ const indexHistory = generatePriceHistory(2_187_450, 30).map((p) => ({
 export default function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stocks, marketStats, simulatePriceUpdate } = useStockStore();
+  const { stocks, marketStats, simulatePriceUpdate, fetchStocks, fetchMarketStats } = useStockStore();
   const { language } = useThemeStore();
+  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // Fetch data from API
+  useEffect(() => {
+    fetchStocks();
+    fetchMarketStats();
+    orderService.getPortfolio().then(setPortfolio).catch(() => {});
+    transactionService.getTransactions().then(setTransactions).catch(() => {});
+  }, []);
 
   // Simulate real-time price updates
   useEffect(() => {
@@ -52,8 +66,6 @@ export default function DashboardPage() {
     .sort((a, b) => a.changePercent - b.changePercent)
     .slice(0, 5);
 
-  const portfolio = mockPortfolio;
-
   const statCards = [
     {
       title: t("dashboard.marketIndex"),
@@ -64,8 +76,8 @@ export default function DashboardPage() {
     },
     {
       title: t("dashboard.totalValue"),
-      value: formatPrice(portfolio.totalValue, language),
-      change: portfolio.totalProfitLossPercent,
+      value: formatPrice(portfolio?.totalValue ?? 0, language),
+      change: portfolio?.totalProfitLossPercent ?? 0,
       icon: DollarSign,
       color: "from-emerald-500 to-green-500",
     },
@@ -78,7 +90,7 @@ export default function DashboardPage() {
     },
     {
       title: t("dashboard.cashBalance"),
-      value: formatPrice(portfolio.cashBalance, language),
+      value: formatPrice(portfolio?.cashBalance ?? 0, language),
       change: 0,
       icon: Wallet,
       color: "from-amber-500 to-orange-500",
@@ -201,7 +213,7 @@ export default function DashboardPage() {
                 {t("dashboard.totalValue")}
               </p>
               <p className="text-3xl font-bold tabular-nums">
-                {formatPrice(portfolio.totalValue, language)}
+                {formatPrice(portfolio?.totalValue ?? 0, language)}
               </p>
             </div>
 
@@ -213,11 +225,11 @@ export default function DashboardPage() {
                 <p
                   className={cn(
                     "text-lg font-semibold tabular-nums",
-                    getChangeColor(portfolio.totalProfitLoss)
+                    getChangeColor(portfolio?.totalProfitLoss ?? 0)
                   )}
                 >
-                  {portfolio.totalProfitLoss > 0 ? "+" : ""}
-                  {formatPrice(portfolio.totalProfitLoss, language)}
+                  {(portfolio?.totalProfitLoss ?? 0) > 0 ? "+" : ""}
+                  {formatPrice(portfolio?.totalProfitLoss ?? 0, language)}
                 </p>
               </div>
               <div className="rounded-lg bg-muted/50 p-3">
@@ -227,17 +239,17 @@ export default function DashboardPage() {
                 <p
                   className={cn(
                     "text-lg font-semibold",
-                    getChangeColor(portfolio.totalProfitLossPercent)
+                    getChangeColor(portfolio?.totalProfitLossPercent ?? 0)
                   )}
                 >
-                  {formatPercent(portfolio.totalProfitLossPercent)}
+                  {formatPercent(portfolio?.totalProfitLossPercent ?? 0)}
                 </p>
               </div>
             </div>
 
             {/* Holdings preview */}
             <div className="space-y-2">
-              {portfolio.holdings.slice(0, 4).map((h) => (
+              {(portfolio?.holdings ?? []).slice(0, 4).map((h) => (
                 <div
                   key={h.stockSymbol}
                   className="flex items-center justify-between py-1.5"
@@ -392,7 +404,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockTransactions.slice(0, 5).map((tx) => (
+                {transactions.slice(0, 5).map((tx) => (
                   <tr
                     key={tx.id}
                     className="border-b border-border/50 last:border-0"

@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, ArrowDownRight, PieChart, Briefcase } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, PieChart, Briefcase, Loader2 } from "lucide-react";
 import {
   PieChart as RechartsPie,
   Pie,
@@ -12,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { mockPortfolio } from "@/services/mockData";
+import { orderService } from "@/services/orderService";
 import { useThemeStore } from "@/stores/themeStore";
 import {
   formatPrice,
@@ -20,6 +21,7 @@ import {
   cn,
   getChangeColor,
 } from "@/lib/utils";
+import type { Portfolio } from "@/types";
 
 const COLORS = [
   "hsl(220, 70%, 50%)",
@@ -33,7 +35,31 @@ export default function PortfolioPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { language } = useThemeStore();
-  const portfolio = mockPortfolio;
+  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    orderService.getPortfolio()
+      .then(setPortfolio)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!portfolio) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <p>Could not load portfolio</p>
+      </div>
+    );
+  }
 
   const pieData = portfolio.holdings.map((h) => ({
     name: h.stockSymbol,

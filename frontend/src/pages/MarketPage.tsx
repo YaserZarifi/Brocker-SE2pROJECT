@@ -26,7 +26,13 @@ export default function MarketPage() {
     marketStats,
   } = useStockStore();
 
+  const { fetchStocks, fetchMarketStats } = useStockStore();
   const filteredStocks = getFilteredStocks();
+
+  useEffect(() => {
+    fetchStocks();
+    fetchMarketStats();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(simulatePriceUpdate, 3000);

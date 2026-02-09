@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { ClipboardList, X } from "lucide-react";
+import { ClipboardList, X, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { mockOrders } from "@/services/mockData";
+import { orderService } from "@/services/orderService";
 import { useThemeStore } from "@/stores/themeStore";
 import { formatPrice, cn } from "@/lib/utils";
-import type { OrderStatus } from "@/types";
+import type { Order, OrderStatus } from "@/types";
 
 const statusVariant: Record<OrderStatus, "success" | "warning" | "danger" | "secondary" | "outline"> = {
   matched: "success",
@@ -22,10 +22,26 @@ export default function OrdersPage() {
   const { t } = useTranslation();
   const { language } = useThemeStore();
   const [filter, setFilter] = useState("all");
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    orderService.getOrders()
+      .then(setAllOrders)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const orders = filter === "all"
-    ? mockOrders
-    : mockOrders.filter((o) => o.status === filter);
+    ? allOrders
+    : allOrders.filter((o) => o.status === filter);
+
+  const handleCancel = async (id: string) => {
+    try {
+      const updated = await orderService.cancelOrder(id);
+      setAllOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
+    } catch {}
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -38,7 +54,7 @@ export default function OrdersPage() {
         {(["pending", "matched", "partial", "cancelled"] as OrderStatus[]).map((status) => (
           <Card key={status} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setFilter(status)}>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold">{mockOrders.filter((o) => o.status === status).length}</p>
+              <p className="text-2xl font-bold">{allOrders.filter((o) => o.status === status).length}</p>
               <p className="text-xs text-muted-foreground mt-1">{t(`orders.${status}`)}</p>
             </CardContent>
           </Card>
@@ -118,7 +134,12 @@ export default function OrdersPage() {
                     </td>
                     <td className="py-3.5 text-end">
                       {order.status === "pending" && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-7">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive h-7"
+                          onClick={() => handleCancel(order.id)}
+                        >
                           <X className="h-3 w-3" />
                         </Button>
                       )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { TrendingUp, Mail, Lock, Wallet, ArrowRight, Eye, EyeOff } from "lucide-react";
@@ -15,13 +15,19 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { login, loginWithEthereum, isLoading } = useAuthStore();
   const [email, setEmail] = useState("ali@example.com");
-  const [password, setPassword] = useState("password123");
+  const [password, setPassword] = useState("Test1234!");
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
-    navigate("/dashboard");
+    setErrorMsg("");
+    try {
+      await login(email, password);
+      navigate("/dashboard");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Login failed");
+    }
   };
 
   const handleSIWE = async () => {
@@ -106,6 +112,11 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
+            {errorMsg && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+                {errorMsg}
+              </div>
+            )}
             {/* Email */}
             <div className="space-y-2">
               <label className="text-sm font-medium">{t("auth.email")}</label>

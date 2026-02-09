@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeftRight, ExternalLink, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { mockTransactions } from "@/services/mockData";
+import { transactionService } from "@/services/transactionService";
 import { useThemeStore } from "@/stores/themeStore";
 import { formatPrice, cn } from "@/lib/utils";
+import type { Transaction } from "@/types";
 
 const statusConfig = {
   confirmed: { icon: CheckCircle, variant: "success" as const, color: "text-stock-up" },
@@ -16,6 +18,11 @@ const statusConfig = {
 export default function TransactionsPage() {
   const { t } = useTranslation();
   const { language } = useThemeStore();
+  const [mockTransactions, setTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    transactionService.getTransactions().then(setTransactions).catch(() => {});
+  }, []);
 
   return (
     <div className="space-y-6 animate-fade-in">

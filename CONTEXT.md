@@ -24,9 +24,9 @@
 | **Charts** | Recharts v3 | ✅ انجام شده |
 | **i18n** | i18next + react-i18next (FA/EN دوزبانه با RTL) | ✅ انجام شده |
 | **Icons** | Lucide React | ✅ انجام شده |
-| **Backend** | Django 5 + Django REST Framework + Django Channels | ⏳ Sprint 2 |
-| **Database** | PostgreSQL | ⏳ Sprint 2 |
-| **Cache/Session** | Redis | ⏳ Sprint 2 |
+| **Backend** | Django 5.2 + DRF 3.16 + simplejwt | ✅ Sprint 2 (DONE) |
+| **Database** | PostgreSQL (+ SQLite for dev) | ✅ Sprint 2 (DONE) |
+| **Cache/Session** | Redis (+ LocMem for dev) | ✅ Sprint 2 (DONE) |
 | **Message Broker** | RabbitMQ (via Celery) | ⏳ Sprint 3 |
 | **Blockchain** | Hardhat + Ethers.js + Solidity (ERC20/ERC1155) | ⏳ Sprint 4 |
 | **Real-time** | Django Channels + WebSocket | ⏳ Sprint 5 |
@@ -88,7 +88,7 @@ d:\Amirkabir\SE2\Project\
 │   ├── vite.config.ts       # Vite + Tailwind plugin + path aliases (@/)
 │   ├── tsconfig.app.json    # TypeScript config with path aliases
 │   └── package.json
-├── backend/                 # ⏳ هنوز ساخته نشده
+├── backend/                 # ✅ Sprint 2 (DONE)
 ├── contracts/               # ⏳ هنوز ساخته نشده (Solidity)
 ├── docker/                  # ⏳ هنوز ساخته نشده
 ├── k8s/                     # ⏳ هنوز ساخته نشده
@@ -141,6 +141,65 @@ npm run dev     # → http://localhost:5173
 
 ---
 
+## Backend - جزئیات فنی (Sprint 2)
+
+### اجرا
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+
+# Development (بدون PostgreSQL/Redis):
+$env:USE_SQLITE="True"
+$env:USE_LOCMEM_CACHE="True"
+python manage.py migrate
+python manage.py seed_data
+python manage.py runserver 8000   # → http://localhost:8000
+```
+
+### API Endpoints
+
+| Endpoint | Method | Description | Auth |
+|---|---|---|---|
+| `/api/v1/auth/login/` | POST | JWT login (email + password) | No |
+| `/api/v1/auth/register/` | POST | Register new user | No |
+| `/api/v1/auth/refresh/` | POST | Refresh JWT token | No |
+| `/api/v1/auth/profile/` | GET/PUT | User profile | Yes |
+| `/api/v1/auth/change-password/` | PUT | Change password | Yes |
+| `/api/v1/auth/users/` | GET | Admin: list users | Admin |
+| `/api/v1/stocks/` | GET | List all stocks | No |
+| `/api/v1/stocks/stats/` | GET | Market statistics | No |
+| `/api/v1/stocks/<symbol>/` | GET | Stock detail | No |
+| `/api/v1/stocks/<symbol>/history/` | GET | Price history (30 days) | No |
+| `/api/v1/orders/` | GET | List user orders | Yes |
+| `/api/v1/orders/create/` | POST | Create new order | Yes |
+| `/api/v1/orders/<id>/cancel/` | PUT | Cancel pending order | Yes |
+| `/api/v1/orders/portfolio/` | GET | User portfolio | Yes |
+| `/api/v1/orders/book/<symbol>/` | GET | Order book for stock | No |
+| `/api/v1/transactions/` | GET | List user transactions | Yes |
+| `/api/v1/notifications/` | GET | List notifications | Yes |
+| `/api/v1/notifications/mark-all-read/` | POST | Mark all read | Yes |
+| `/api/v1/notifications/unread-count/` | GET | Unread count | Yes |
+| `/api/v1/blockchain/status/` | GET | Blockchain status | No |
+| `/api/docs/` | GET | Swagger API documentation | No |
+
+### Test Users
+| Email | Password | Role |
+|---|---|---|
+| `ali@example.com` | `Test1234!` | Customer |
+| `admin@boursechain.ir` | `Admin1234!` | Admin |
+
+### Django Apps (Modular Monolith)
+- **users**: Custom User model (UUID PK, email login, role, wallet_address, cash_balance)
+- **stocks**: Stock + PriceHistory models, market stats
+- **orders**: Order + PortfolioHolding models, order book
+- **transactions**: Transaction model (buy/sell matching records)
+- **notifications**: Notification model (bilingual FA/EN)
+- **blockchain_service**: Placeholder for Sprint 4
+
+---
+
 ## نقشه‌راه Sprint‌ها
 
 ### ✅ Sprint 1 - Frontend (DONE)
@@ -150,13 +209,15 @@ npm run dev     # → http://localhost:5173
 - Real-time price simulation
 - Charts (Area, Pie)
 
-### ⏳ Sprint 2 - Backend API + Database
+### ✅ Sprint 2 - Backend API + Database (DONE)
 - Django project setup با اپ‌های جدا (users, stocks, orders, transactions, notifications, blockchain_service)
-- PostgreSQL + Redis setup
-- Django REST Framework APIs
-- User authentication (JWT)
-- CRUD for stocks, orders
-- اتصال Frontend به Backend API (جایگزینی Mock Data)
+- PostgreSQL + Redis setup (+ SQLite/LocMem fallback for dev)
+- Django REST Framework APIs (all endpoints)
+- User authentication (JWT via simplejwt)
+- CRUD for stocks, orders, transactions, notifications
+- Management command: `python manage.py seed_data` (mirrors frontend mockData.ts)
+- API Documentation: Swagger UI at `/api/docs/`
+- ⏳ اتصال Frontend به Backend API (جایگزینی Mock Data) - remaining task
 
 ### ⏳ Sprint 3 - Matching Engine + Order System
 - Order matching algorithm (price-time priority)

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Stock, MarketStats } from "@/types";
-import { mockStocks, mockMarketStats } from "@/services/mockData";
+import { stockService } from "@/services/stockService";
 import { generateRandomPrice } from "@/lib/utils";
 
 interface StockState {
@@ -10,24 +10,59 @@ interface StockState {
   selectedSector: string;
   sortBy: string;
   isLoading: boolean;
+  error: string | null;
   setSearchQuery: (query: string) => void;
   setSelectedSector: (sector: string) => void;
   setSortBy: (sort: string) => void;
   getFilteredStocks: () => Stock[];
   simulatePriceUpdate: () => void;
+  fetchStocks: () => Promise<void>;
+  fetchMarketStats: () => Promise<void>;
 }
 
+const defaultMarketStats: MarketStats = {
+  totalStocks: 0,
+  totalVolume: 0,
+  totalMarketCap: 0,
+  gainers: 0,
+  losers: 0,
+  unchanged: 0,
+  indexValue: 0,
+  indexChange: 0,
+  indexChangePercent: 0,
+};
+
 export const useStockStore = create<StockState>((set, get) => ({
-  stocks: mockStocks,
-  marketStats: mockMarketStats,
+  stocks: [],
+  marketStats: defaultMarketStats,
   searchQuery: "",
   selectedSector: "all",
   sortBy: "symbol",
   isLoading: false,
+  error: null,
 
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSelectedSector: (selectedSector) => set({ selectedSector }),
   setSortBy: (sortBy) => set({ sortBy }),
+
+  fetchStocks: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const stocks = await stockService.getStocks();
+      set({ stocks, isLoading: false });
+    } catch (err: any) {
+      set({ isLoading: false, error: "Failed to load stocks" });
+    }
+  },
+
+  fetchMarketStats: async () => {
+    try {
+      const stats = await stockService.getMarketStats();
+      set({ marketStats: stats });
+    } catch {
+      // Silently fail - stats are optional
+    }
+  },
 
   getFilteredStocks: () => {
     const { stocks, searchQuery, selectedSector, sortBy } = get();

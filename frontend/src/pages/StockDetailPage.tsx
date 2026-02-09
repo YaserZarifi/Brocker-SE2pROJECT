@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import {
   AreaChart,
@@ -23,6 +24,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStockStore } from "@/stores/stockStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { stockService } from "@/services/stockService";
+import { orderService } from "@/services/orderService";
 import { generatePriceHistory, generateOrderBook } from "@/services/mockData";
 import {
   formatPrice,
@@ -31,28 +34,57 @@ import {
   cn,
   getChangeColor,
 } from "@/lib/utils";
+import type { OrderBook as OrderBookType } from "@/types";
 
 export default function StockDetailPage() {
   const { symbol } = useParams<{ symbol: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stocks, simulatePriceUpdate } = useStockStore();
+  const { stocks, simulatePriceUpdate, fetchStocks } = useStockStore();
   const { language } = useThemeStore();
 
   const stock = stocks.find((s) => s.symbol === symbol);
   const [orderType, setOrderType] = useState<"buy" | "sell">("buy");
   const [price, setPrice] = useState(stock?.currentPrice?.toString() || "");
   const [quantity, setQuantity] = useState("100");
+  const [priceHistory, setPriceHistory] = useState<{ date: string; price: number; volume: number }[]>([]);
+  const [orderBook, setOrderBook] = useState<OrderBookType | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [orderMsg, setOrderMsg] = useState("");
 
-  const priceHistory = stock
-    ? generatePriceHistory(stock.currentPrice, 30).map((p) => ({
-        date: p.timestamp.slice(5),
-        price: p.close,
-        volume: p.volume,
-      }))
-    : [];
+  // Fetch stocks if empty
+  useEffect(() => {
+    if (stocks.length === 0) fetchStocks();
+  }, []);
 
-  const orderBook = stock ? generateOrderBook(stock.currentPrice) : null;
+  // Fetch price history and order book from API, with fallback to generated data
+  useEffect(() => {
+    if (!symbol || !stock) return;
+    stockService
+      .getPriceHistory(symbol, 30)
+      .then((data) => {
+        if (data.length > 0) {
+          setPriceHistory(data.map((p) => ({ date: String(p.timestamp).slice(5), price: Number(p.close), volume: Number(p.volume) })));
+        } else {
+          // Fallback to generated data
+          setPriceHistory(generatePriceHistory(stock.currentPrice, 30).map((p) => ({ date: p.timestamp.slice(5), price: p.close, volume: p.volume })));
+        }
+      })
+      .catch(() => {
+        setPriceHistory(generatePriceHistory(stock.currentPrice, 30).map((p) => ({ date: p.timestamp.slice(5), price: p.close, volume: p.volume })));
+      });
+
+    orderService
+      .getOrderBook(symbol)
+      .then((book) => {
+        if (book.bids.length > 0 || book.asks.length > 0) {
+          setOrderBook(book);
+        } else {
+          setOrderBook(generateOrderBook(stock.currentPrice));
+        }
+      })
+      .catch(() => setOrderBook(generateOrderBook(stock.currentPrice)));
+  }, [symbol, stock?.currentPrice]);
 
   useEffect(() => {
     const interval = setInterval(simulatePriceUpdate, 3000);
@@ -62,6 +94,25 @@ export default function StockDetailPage() {
   useEffect(() => {
     if (stock) setPrice(stock.currentPrice.toString());
   }, [stock?.currentPrice]);
+
+  const handlePlaceOrder = async () => {
+    if (!symbol || !price || !quantity) return;
+    setOrderLoading(true);
+    setOrderMsg("");
+    try {
+      await orderService.createOrder({
+        stock_symbol: symbol,
+        type: orderType,
+        price: parseFloat(price),
+        quantity: parseInt(quantity),
+      });
+      setOrderMsg(t("stock.orderSuccess") || "Order placed successfully!");
+    } catch (err: any) {
+      setOrderMsg(err.response?.data?.error || "Failed to place order");
+    } finally {
+      setOrderLoading(false);
+    }
+  };
 
   if (!stock) {
     return (
@@ -363,11 +414,28 @@ export default function StockDetailPage() {
                   </div>
                 </div>
 
+                {orderMsg && (
+                  <div className={cn(
+                    "rounded-lg p-2.5 text-xs text-center",
+                    orderMsg.includes("success") || orderMsg.includes("Success")
+                      ? "bg-stock-up/10 text-stock-up"
+                      : "bg-destructive/10 text-destructive"
+                  )}>
+                    {orderMsg}
+                  </div>
+                )}
+
                 <Button
                   className="w-full h-11"
                   variant={orderType === "buy" ? "success" : "danger"}
+                  onClick={handlePlaceOrder}
+                  disabled={orderLoading}
                 >
-                  <TrendingUp className="h-4 w-4" />
+                  {orderLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <TrendingUp className="h-4 w-4" />
+                  )}
                   {t("stock.placeOrder")} - {orderType === "buy" ? t("stock.buy") : t("stock.sell")}
                 </Button>
               </div>
