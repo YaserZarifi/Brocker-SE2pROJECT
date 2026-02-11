@@ -8,6 +8,7 @@ import { wsManager } from "@/services/websocketService";
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  isAuthChecked: boolean;
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
@@ -21,6 +22,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isAuthenticated: false,
+  isAuthChecked: false,
   isLoading: false,
   error: null,
 
@@ -106,13 +108,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      set({ isAuthChecked: true });
+      return;
+    }
     try {
       const user = await authService.getProfile();
-      set({ user, isAuthenticated: true });
+      set({ user, isAuthenticated: true, isAuthChecked: true });
     } catch {
-      // Token expired or invalid
       authService.logout();
+      set({ isAuthChecked: true });
     }
   },
 
