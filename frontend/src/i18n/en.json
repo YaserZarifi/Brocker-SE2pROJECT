@@ -162,7 +162,8 @@
     "pending": "Pending",
     "failed": "Failed",
     "viewOnChain": "View on Chain",
-    "noTransactions": "No transactions yet"
+    "noTransactions": "No transactions yet",
+    "recordingOnChain": "Recording..."
   },
   "notifications": {
     "title": "Notifications",

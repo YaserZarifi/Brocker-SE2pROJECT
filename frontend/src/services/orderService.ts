@@ -33,8 +33,8 @@ export const orderService = {
   },
 
   async getPortfolio(): Promise<Portfolio> {
-    const { data } = await api.get<Portfolio>("/orders/portfolio/");
-    return normalizePortfolio(data);
+    const { data } = await api.get<Record<string, unknown>>("/orders/portfolio/");
+    return normalizePortfolio(toPortfolioShape(data));
   },
 
   async getOrderBook(symbol: string): Promise<OrderBook> {
@@ -52,6 +52,38 @@ function normalizeOrder(o: Order): Order {
   };
 }
 
+/** Normalize API response (handles both camelCase and snake_case from backend). */
+function toPortfolioShape(raw: Record<string, unknown>): Portfolio {
+  const hv = (v: unknown) => (v ?? 0) as number;
+  const arr = raw.holdings as unknown[];
+  const holdings = Array.isArray(arr) ? arr : [];
+
+  return {
+    userId: String(raw.userId ?? raw.user_id ?? ""),
+    totalValue: hv(raw.totalValue ?? raw.total_value),
+    totalInvested: hv(raw.totalInvested ?? raw.total_invested),
+    totalProfitLoss: hv(raw.totalProfitLoss ?? raw.total_profit_loss),
+    totalProfitLossPercent: hv(raw.totalProfitLossPercent ?? raw.total_profit_loss_percent),
+    cashBalance: hv(raw.cashBalance ?? raw.cash_balance),
+    holdings: holdings.map((h) => toHoldingShape(h as Record<string, unknown>)),
+  };
+}
+
+function toHoldingShape(h: Record<string, unknown>): Portfolio["holdings"][0] {
+  const n = (v: unknown) => Number(v ?? 0);
+  return {
+    stockSymbol: String(h.stockSymbol ?? h.stock_symbol ?? ""),
+    stockName: String(h.stockName ?? h.stock_name ?? ""),
+    stockNameFa: String(h.stockNameFa ?? h.stock_name_fa ?? ""),
+    quantity: n(h.quantity),
+    averageBuyPrice: n(h.averageBuyPrice ?? h.average_buy_price),
+    currentPrice: n(h.currentPrice ?? h.current_price),
+    totalValue: n(h.totalValue ?? h.total_value),
+    profitLoss: n(h.profitLoss ?? h.profit_loss),
+    profitLossPercent: n(h.profitLossPercent ?? h.profit_loss_percent),
+  };
+}
+
 function normalizePortfolio(p: Portfolio): Portfolio {
   return {
     ...p,
@@ -60,7 +92,7 @@ function normalizePortfolio(p: Portfolio): Portfolio {
     totalProfitLoss: Number(p.totalProfitLoss),
     totalProfitLossPercent: Number(p.totalProfitLossPercent),
     cashBalance: Number(p.cashBalance),
-    holdings: p.holdings.map((h) => ({
+    holdings: (p.holdings ?? []).map((h) => ({
       ...h,
       quantity: Number(h.quantity),
       averageBuyPrice: Number(h.averageBuyPrice),

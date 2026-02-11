@@ -61,6 +61,7 @@ export default function PortfolioPage() {
     );
   }
 
+  const safeTotal = portfolio.totalValue > 0 ? portfolio.totalValue : 1;
   const pieData = portfolio.holdings.map((h) => ({
     name: h.stockSymbol,
     value: h.totalValue,
@@ -224,7 +225,7 @@ export default function PortfolioPage() {
             </div>
             <div className="mt-4 space-y-2.5">
               {portfolio.holdings.map((h, i) => {
-                const pct = (h.totalValue / portfolio.totalValue) * 100;
+                const pct = (h.totalValue / safeTotal) * 100;
                 return (
                   <div key={h.stockSymbol} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">

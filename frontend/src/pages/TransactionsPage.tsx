@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, ExternalLink, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,9 +20,23 @@ export default function TransactionsPage() {
   const { language } = useThemeStore();
   const [mockTransactions, setTransactions] = useState<Transaction[]>([]);
 
-  useEffect(() => {
+  const fetchTransactions = useCallback(() => {
     transactionService.getTransactions().then(setTransactions).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  // Auto-refresh when there are confirmed transactions without blockchain hash (in case Celery is still recording)
+  const hasPendingHashes = mockTransactions.some(
+    (tx) => tx.status === "confirmed" && !tx.blockchainHash
+  );
+  useEffect(() => {
+    if (!hasPendingHashes) return;
+    const interval = setInterval(fetchTransactions, 5000);
+    return () => clearInterval(interval);
+  }, [hasPendingHashes, fetchTransactions]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -117,6 +131,11 @@ export default function TransactionsPage() {
                             {tx.blockchainHash.slice(0, 6)}...{tx.blockchainHash.slice(-4)}
                             <ExternalLink className="h-3 w-3" />
                           </Button>
+                        ) : tx.status === "confirmed" ? (
+                          <span className="flex items-center gap-1 text-xs text-amber-500">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            {t("transactions.recordingOnChain")}
+                          </span>
                         ) : (
                           <span className="text-xs text-muted-foreground/50">-</span>
                         )}

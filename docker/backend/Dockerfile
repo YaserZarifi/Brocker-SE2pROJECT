@@ -3,6 +3,15 @@
 # Sprint 6 - Docker
 # ==============================================
 
+# ---------- Stage 1: Compile contracts (for deploy_contract) ----------
+FROM docker.arvancloud.ir/node:20-alpine AS contracts-builder
+WORKDIR /app
+COPY contracts/package.json contracts/package-lock.json* ./
+RUN npm ci 2>/dev/null || npm install
+COPY contracts/ .
+RUN npx hardhat compile
+
+# ---------- Stage 2: Python backend ----------
 FROM docker.arvancloud.ir/python:3.12-slim
 
 # Environment
@@ -25,6 +34,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source
 COPY backend/ .
+
+# Copy contract artifacts from contracts-builder (needed for deploy_contract + record_transaction)
+COPY --from=contracts-builder /app/artifacts ./contracts/artifacts
 
 # Copy entrypoint (fix Windows CRLF → LF)
 COPY docker/backend/entrypoint.sh /entrypoint.sh

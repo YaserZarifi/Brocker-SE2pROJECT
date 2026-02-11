@@ -17,23 +17,28 @@ Architecture:
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Paths (relative to Django BASE_DIR)
-_BASE_DIR = Path(__file__).resolve().parent.parent
+# Paths: use Django BASE_DIR (project root = /app in Docker)
 CONTRACT_ARTIFACTS_PATH = (
-    _BASE_DIR.parent
+    settings.BASE_DIR
     / "contracts"
     / "artifacts"
     / "contracts"
     / "TransactionLedger.sol"
     / "TransactionLedger.json"
 )
-CONTRACT_ADDRESS_FILE = Path(__file__).resolve().parent / "contract_address.json"
+
+# Contract address: use env/config for Docker shared volume, else default path
+_DEFAULT_CONTRACT_FILE = Path(__file__).resolve().parent / "contract_address.json"
+CONTRACT_ADDRESS_FILE = Path(
+    os.environ.get("BLOCKCHAIN_CONTRACT_ADDRESS_FILE", str(_DEFAULT_CONTRACT_FILE))
+)
 
 
 # ---------------------------------------------------------------------------

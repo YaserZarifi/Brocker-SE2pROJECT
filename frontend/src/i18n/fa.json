@@ -162,7 +162,8 @@
     "pending": "در انتظار",
     "failed": "ناموفق",
     "viewOnChain": "مشاهده در بلاکچین",
-    "noTransactions": "هنوز تراکنشی انجام نشده"
+    "noTransactions": "هنوز تراکنشی انجام نشده",
+    "recordingOnChain": "در حال ثبت..."
   },
   "notifications": {
     "title": "اعلان‌ها",

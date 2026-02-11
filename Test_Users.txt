@@ -1,0 +1,51 @@
+========================================
+  BourseChain - لیست کاربران تست
+========================================
+(بعد از اجرای: python manage.py seed_data --flush)
+
+رمز همه کاربران معمولی: Test1234!
+رمز دمو: Demo1234!
+رمز ادمین: Admin1234!
+
+----------------------------------------
+کاربران اصلی (برای تست لاگین و سبد/سفارش)
+----------------------------------------
+
+کاربر اصلی (علی)
+  Email:    ali@example.com
+  Password: Test1234!
+
+کاربر دمو (برای تست شما)
+  Email:    demo@boursechain.ir
+  Password: Demo1234!
+
+ادمین
+  Email:    admin@boursechain.ir
+  Password: Admin1234!
+
+فروشنده تست (دارای سهم برای فروش)
+  Email:    seller@test.com
+  Password: Test1234!
+
+تأمین نقدینگی (برای تطبیق سفارشات بازار)
+  Email:    liquidity@boursechain.ir
+  Password: Test1234!
+
+----------------------------------------
+کاربران اضافه (همه با رمز: Test1234!)
+----------------------------------------
+
+  user042@example.com   (Sara Mohammadi)
+  user015@example.com   (Reza Ahmadi)
+  user088@example.com   (Maryam Hosseini)
+  user033@example.com   (Hassan Karimi)
+  user077@example.com   (Zahra Bahrami)
+  user011@example.com   (Amir Nasiri)
+  user022@example.com   (Fatima Rahimi)
+  user055@example.com   (Mehdi Salehi)
+  user066@example.com   (Narges Kazemi)
+  user099@example.com   (Saeed Mousavi)
+
+========================================
+پایان فایل
+========================================
