@@ -19,6 +19,14 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Celery Beat: periodic tasks (Stop-Loss / Take-Profit trigger check)
+app.conf.beat_schedule = {
+    "check-conditional-orders": {
+        "task": "orders.check_conditional_orders",
+        "schedule": 30.0,  # every 30 seconds
+    },
+}
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

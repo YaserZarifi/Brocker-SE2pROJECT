@@ -9,7 +9,11 @@ class OrderSerializer(serializers.ModelSerializer):
     userId = serializers.UUIDField(source="user_id", read_only=True)
     stockSymbol = serializers.CharField(source="stock.symbol", read_only=True)
     stockName = serializers.CharField(source="stock.name", read_only=True)
+    executionType = serializers.CharField(source="execution_type", read_only=True)
     filledQuantity = serializers.IntegerField(source="filled_quantity", read_only=True)
+    triggerPrice = serializers.DecimalField(
+        source="trigger_price", max_digits=12, decimal_places=2, read_only=True, allow_null=True
+    )
     createdAt = serializers.DateTimeField(source="created_at", read_only=True)
     updatedAt = serializers.DateTimeField(source="updated_at", read_only=True)
 
@@ -21,14 +25,18 @@ class OrderSerializer(serializers.ModelSerializer):
             "stockSymbol",
             "stockName",
             "type",
+            "executionType",
             "price",
+            "triggerPrice",
             "quantity",
             "filledQuantity",
             "status",
             "createdAt",
             "updatedAt",
         ]
-        read_only_fields = ["id", "userId", "filledQuantity", "status", "createdAt", "updatedAt"]
+        read_only_fields = [
+            "id", "userId", "filledQuantity", "status", "createdAt", "updatedAt"
+        ]
 
 
 class OrderCreateSerializer(serializers.Serializer):
@@ -36,8 +44,31 @@ class OrderCreateSerializer(serializers.Serializer):
 
     stock_symbol = serializers.CharField(max_length=10)
     type = serializers.ChoiceField(choices=Order.OrderType.choices)
-    price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    execution_type = serializers.ChoiceField(
+        choices=Order.ExecutionType.choices,
+        default=Order.ExecutionType.LIMIT,
+    )
+    price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True
+    )
     quantity = serializers.IntegerField(min_value=1)
+    trigger_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, required=False, allow_null=True
+    )
+
+    def validate(self, attrs):
+        exec_type = attrs.get("execution_type", Order.ExecutionType.LIMIT)
+        if exec_type in (Order.ExecutionType.LIMIT,):
+            if attrs.get("price") is None:
+                raise serializers.ValidationError(
+                    {"price": "Price is required for limit orders."}
+                )
+        if exec_type in (Order.ExecutionType.STOP_LOSS, Order.ExecutionType.TAKE_PROFIT):
+            if attrs.get("trigger_price") is None:
+                raise serializers.ValidationError(
+                    {"trigger_price": "Trigger price is required for stop-loss/take-profit."}
+                )
+        return attrs
 
 
 class PortfolioHoldingSerializer(serializers.ModelSerializer):

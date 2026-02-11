@@ -100,6 +100,19 @@ class Command(BaseCommand):
             self.stdout.write(f"  Created admin: {admin.email}")
 
         # Extra users for transactions
+        # Liquidity provider - has cash + shares for Market orders to match
+        if not User.objects.filter(email="liquidity@boursechain.ir").exists():
+            User.objects.create_user(
+                username="liquidity",
+                email="liquidity@boursechain.ir",
+                password="Test1234!",
+                first_name="Liquidity",
+                last_name="Provider",
+                role="customer",
+                cash_balance=Decimal("100000000.00"),
+            )
+            self.stdout.write("  Created liquidity provider user.")
+
         extra_users = [
             ("user042", "user042@example.com", "Sara", "Mohammadi"),
             ("user015", "user015@example.com", "Reza", "Ahmadi"),
@@ -253,6 +266,39 @@ class Command(BaseCommand):
             status="confirmed",
         )
 
+        # Liquidity orders - pending SELL + BUY at current price for each stock
+        # So Market Buy/Sell orders can execute immediately
+        lp = User.objects.filter(email="liquidity@boursechain.ir").first()
+        if lp:
+            for stock in Stock.objects.all():
+                lp.refresh_from_db()
+                price = Decimal(str(round(float(stock.current_price), 2)))
+                qty = 5000
+                # Reserve stock for sell order
+                holding, _ = PortfolioHolding.objects.get_or_create(
+                    user=lp, stock=stock,
+                    defaults={"quantity": 0, "average_buy_price": Decimal("0")},
+                )
+                if holding.quantity >= qty:
+                    holding.quantity -= qty
+                    holding.save(update_fields=["quantity"])
+                    Order.objects.create(
+                        user=lp, stock=stock, type="sell",
+                        execution_type="limit", price=price, quantity=qty,
+                        status="pending",
+                    )
+                # Reserve cash for buy order
+                total = price * qty
+                if lp.cash_balance >= total:
+                    lp.cash_balance -= total
+                    lp.save(update_fields=["cash_balance"])
+                    Order.objects.create(
+                        user=lp, stock=stock, type="buy",
+                        execution_type="limit", price=price, quantity=qty,
+                        status="pending",
+                    )
+            self.stdout.write("  Liquidity orders created (pending sell+buy per stock).")
+
         self.stdout.write(self.style.SUCCESS("  Orders & transactions created."))
 
     def _create_portfolio_holdings(self):
@@ -279,6 +325,19 @@ class Command(BaseCommand):
                 quantity=qty,
                 average_buy_price=Decimal(str(avg_price)),
             )
+
+        # Liquidity provider holdings - so Market Sell orders can match
+        lp = User.objects.filter(email="liquidity@boursechain.ir").first()
+        if lp:
+            for stock in Stock.objects.all():
+                PortfolioHolding.objects.get_or_create(
+                    user=lp,
+                    stock=stock,
+                    defaults={
+                        "quantity": 10_000,
+                        "average_buy_price": stock.current_price,
+                    },
+                )
 
         self.stdout.write(self.style.SUCCESS("  Portfolio holdings created."))
 

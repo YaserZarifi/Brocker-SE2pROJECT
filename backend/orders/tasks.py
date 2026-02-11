@@ -54,12 +54,13 @@ def match_order_task(self, order_id):
 def match_all_pending_task():
     """
     Periodic task to attempt matching all pending/partial orders.
-    Useful for catching any orders that might have been missed.
+    Excludes Stop-Loss/Take-Profit (handled by check_conditional_orders_task).
     """
     from .models import Order
 
     pending_orders = Order.objects.filter(
-        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL]
+        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
+        execution_type__in=[Order.ExecutionType.LIMIT, Order.ExecutionType.MARKET],
     ).values_list("id", flat=True)
 
     count = 0
@@ -69,3 +70,92 @@ def match_all_pending_task():
 
     logger.info(f"[Celery] Queued {count} pending orders for matching")
     return {"queued": count}
+
+
+@shared_task(name="orders.check_conditional_orders")
+def check_conditional_orders_task():
+    """
+    Check Stop-Loss and Take-Profit orders; convert triggered ones to market and match.
+    Run periodically via Celery Beat (e.g. every 30 seconds).
+    """
+    from django.db import transaction as db_transaction
+
+    from .matching import match_order
+    from .models import Order, PortfolioHolding
+
+    from .views import _get_order_book_prices
+
+    triggered = 0
+    for order in Order.objects.filter(
+        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
+        execution_type__in=[
+            Order.ExecutionType.STOP_LOSS,
+            Order.ExecutionType.TAKE_PROFIT,
+        ],
+    ).select_related("stock", "user"):
+        stock = order.stock
+        trigger = order.trigger_price
+        current = stock.current_price
+
+        should_trigger = False
+        if order.execution_type == Order.ExecutionType.STOP_LOSS:
+            if order.type == Order.OrderType.SELL and current <= trigger:
+                should_trigger = True
+            elif order.type == Order.OrderType.BUY and current >= trigger:
+                should_trigger = True
+        elif order.execution_type == Order.ExecutionType.TAKE_PROFIT:
+            if order.type == Order.OrderType.SELL and current >= trigger:
+                should_trigger = True
+            elif order.type == Order.OrderType.BUY and current <= trigger:
+                should_trigger = True
+
+        if not should_trigger:
+            continue
+
+        try:
+            with db_transaction.atomic():
+                if order.type == Order.OrderType.SELL:
+                    holding = PortfolioHolding.objects.select_for_update().filter(
+                        user=order.user, stock=stock
+                    ).first()
+                    if not holding or holding.quantity < order.quantity:
+                        order.status = Order.OrderStatus.CANCELLED
+                        order.save(update_fields=["status", "updated_at"])
+                        logger.warning(
+                            f"Conditional sell {order.id} cancelled: insufficient holdings"
+                        )
+                        continue
+                    holding.quantity -= order.quantity
+                    holding.save(update_fields=["quantity"])
+                    best_ask, best_bid = _get_order_book_prices(stock)
+                    order.price = best_bid if best_bid else stock.current_price
+                else:
+                    best_ask, _ = _get_order_book_prices(stock)
+                    price = best_ask if best_ask else stock.current_price
+                    if price <= 0:
+                        continue
+                    total = price * order.quantity
+                    user = type(order.user).objects.select_for_update().get(
+                        pk=order.user.pk
+                    )
+                    if user.cash_balance < total:
+                        order.status = Order.OrderStatus.CANCELLED
+                        order.save(update_fields=["status", "updated_at"])
+                        logger.warning(
+                            f"Conditional buy {order.id} cancelled: insufficient cash"
+                        )
+                        continue
+                    user.cash_balance -= total
+                    user.save(update_fields=["cash_balance"])
+                    order.price = price
+
+                order.execution_type = Order.ExecutionType.MARKET
+                order.save(update_fields=["execution_type", "price", "updated_at"])
+                triggered += 1
+                match_order(str(order.id))
+        except Exception as exc:
+            logger.exception(f"Failed to trigger conditional order {order.id}: {exc}")
+
+    if triggered:
+        logger.info(f"[Celery] Triggered {triggered} conditional orders")
+    return {"triggered": triggered}

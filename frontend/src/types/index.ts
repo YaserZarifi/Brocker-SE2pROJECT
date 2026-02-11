@@ -36,6 +36,7 @@ export interface Stock {
 
 export type OrderType = "buy" | "sell";
 export type OrderStatus = "pending" | "matched" | "partial" | "cancelled" | "expired";
+export type ExecutionType = "limit" | "market" | "stop_loss" | "take_profit";
 
 export interface Order {
   id: string;
@@ -43,7 +44,9 @@ export interface Order {
   stockSymbol: string;
   stockName: string;
   type: OrderType;
+  executionType?: ExecutionType;
   price: number;
+  triggerPrice?: number | null;
   quantity: number;
   filledQuantity: number;
   status: OrderStatus;
@@ -112,6 +115,9 @@ export interface OrderBook {
   symbol: string;
   bids: OrderBookEntry[];
   asks: OrderBookEntry[];
+  bestBid?: number;
+  bestAsk?: number;
+  currentPrice?: number;
   spread: number;
   spreadPercent: number;
 }

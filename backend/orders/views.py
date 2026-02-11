@@ -1,6 +1,7 @@
 """
 Order views for BourseChain.
 Sprint 3 - Updated with cash/stock reservation, matching engine trigger, cancel refund.
+Binance-style: Market, Limit, Stop-Loss, Take-Profit order types.
 """
 
 import logging
@@ -15,6 +16,31 @@ from rest_framework.response import Response
 from stocks.models import Stock
 
 from .models import Order, PortfolioHolding
+
+
+def _get_order_book_prices(stock):
+    """Get best bid and best ask for a stock from the order book."""
+    base_qs = Order.objects.filter(
+        stock=stock,
+        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
+    ).annotate(remaining=F("quantity") - F("filled_quantity"))
+
+    best_ask = (
+        base_qs.filter(type=Order.OrderType.SELL)
+        .values("price")
+        .order_by("price")
+        .first()
+    )
+    best_bid = (
+        base_qs.filter(type=Order.OrderType.BUY)
+        .values("price")
+        .order_by("-price")
+        .first()
+    )
+    return (
+        Decimal(str(best_ask["price"])) if best_ask else None,
+        Decimal(str(best_bid["price"])) if best_bid else None,
+    )
 from .serializers import (
     OrderBookSerializer,
     OrderCreateSerializer,
@@ -63,8 +89,15 @@ class OrderCreateView(generics.CreateAPIView):
             )
 
         user = request.user
+        execution_type = data.get("execution_type", Order.ExecutionType.LIMIT)
 
-        if data["type"] == "buy":
+        # Stop-Loss / Take-Profit: create as pending conditional order (triggered later)
+        if execution_type in (
+            Order.ExecutionType.STOP_LOSS,
+            Order.ExecutionType.TAKE_PROFIT,
+        ):
+            order, error = self._create_conditional_order(user, stock, data)
+        elif data["type"] == "buy":
             order, error = self._create_buy_order(user, stock, data)
         else:
             order, error = self._create_sell_order(user, stock, data)
@@ -72,7 +105,6 @@ class OrderCreateView(generics.CreateAPIView):
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Trigger matching engine asynchronously via Celery
         self._trigger_matching(order)
 
         return Response(
@@ -84,17 +116,25 @@ class OrderCreateView(generics.CreateAPIView):
     def _create_buy_order(self, user, stock, data):
         """
         Create a buy order and reserve cash.
-        Returns (order, None) on success or (None, error_message) on failure.
+        - Limit: reserve price * quantity
+        - Market: reserve best_ask * quantity (or current_price if no asks)
         """
-        total_cost = data["price"] * data["quantity"]
+        execution_type = data.get("execution_type", Order.ExecutionType.LIMIT)
+        if execution_type == Order.ExecutionType.MARKET:
+            best_ask, _ = _get_order_book_prices(stock)
+            price = best_ask if best_ask is not None else stock.current_price
+            if price <= 0:
+                return None, "No liquidity available for market buy."
+            data = {**data, "price": price}
+        else:
+            price = data["price"]
 
-        # Lock user row for update to prevent race conditions
+        total_cost = price * data["quantity"]
+
         user = type(user).objects.select_for_update().get(pk=user.pk)
-
         if user.cash_balance < total_cost:
             return None, "Insufficient cash balance."
 
-        # Reserve cash: deduct from balance
         user.cash_balance -= total_cost
         user.save(update_fields=["cash_balance"])
 
@@ -102,34 +142,42 @@ class OrderCreateView(generics.CreateAPIView):
             user=user,
             stock=stock,
             type=data["type"],
-            price=data["price"],
+            execution_type=execution_type,
+            price=price,
             quantity=data["quantity"],
         )
 
         logger.info(
             f"Buy order created: {order.id} - {data['quantity']} {stock.symbol} "
-            f"@ {data['price']} (reserved {total_cost} cash)"
+            f"@ {price} ({execution_type})"
         )
-
         return order, None
 
     @db_transaction.atomic
     def _create_sell_order(self, user, stock, data):
         """
         Create a sell order and reserve stock.
-        Returns (order, None) on success or (None, error_message) on failure.
+        - Limit: price from data
+        - Market: price = best_bid or current_price (for display/reservation ref)
         """
-        # Lock holding row for update to prevent race conditions
+        execution_type = data.get("execution_type", Order.ExecutionType.LIMIT)
+        if execution_type == Order.ExecutionType.MARKET:
+            _, best_bid = _get_order_book_prices(stock)
+            price = best_bid if best_bid is not None else stock.current_price
+            if price <= 0:
+                return None, "No liquidity available for market sell."
+            data = {**data, "price": price}
+        else:
+            price = data["price"]
+
         holding = (
             PortfolioHolding.objects.select_for_update()
             .filter(user=user, stock=stock)
             .first()
         )
-
         if not holding or holding.quantity < data["quantity"]:
             return None, "Insufficient stock holdings."
 
-        # Reserve stock: deduct from holdings
         holding.quantity -= data["quantity"]
         holding.save(update_fields=["quantity"])
 
@@ -137,15 +185,32 @@ class OrderCreateView(generics.CreateAPIView):
             user=user,
             stock=stock,
             type=data["type"],
-            price=data["price"],
+            execution_type=execution_type,
+            price=price,
             quantity=data["quantity"],
         )
 
         logger.info(
             f"Sell order created: {order.id} - {data['quantity']} {stock.symbol} "
-            f"@ {data['price']} (reserved {data['quantity']} shares)"
+            f"@ {price} ({execution_type})"
         )
+        return order, None
 
+    def _create_conditional_order(self, user, stock, data):
+        """Create Stop-Loss or Take-Profit order (stays pending until trigger)."""
+        order = Order.objects.create(
+            user=user,
+            stock=stock,
+            type=data["type"],
+            execution_type=data["execution_type"],
+            price=data.get("price") or stock.current_price,
+            quantity=data["quantity"],
+            trigger_price=data["trigger_price"],
+        )
+        logger.info(
+            f"Conditional order created: {order.id} {order.execution_type} "
+            f"{data['quantity']} {stock.symbol} @ trigger {data['trigger_price']}"
+        )
         return order, None
 
     def _trigger_matching(self, order):
@@ -197,7 +262,13 @@ class OrderCancelView(generics.UpdateAPIView):
         order = self.get_object()
         remaining_qty = order.quantity - order.filled_quantity
 
-        if remaining_qty > 0:
+        # Conditional orders (stop_loss/take_profit) don't reserve cash/stock - nothing to refund
+        is_conditional = order.execution_type in (
+            Order.ExecutionType.STOP_LOSS,
+            Order.ExecutionType.TAKE_PROFIT,
+        )
+
+        if remaining_qty > 0 and not is_conditional:
             if order.type == Order.OrderType.BUY:
                 # Refund reserved cash for unfilled portion
                 refund_amount = order.price * remaining_qty
@@ -320,11 +391,15 @@ def order_book_view(request, symbol):
     best_ask = asks[0]["price"] if asks else 0
     spread = best_ask - best_bid if (best_ask and best_bid) else 0
     spread_pct = (spread / best_ask * 100) if best_ask > 0 else 0
+    current_price = float(stock.current_price)
 
     data = {
         "symbol": symbol,
         "bids": bids,
         "asks": asks,
+        "bestBid": best_bid,
+        "bestAsk": best_ask,
+        "currentPrice": current_price,
         "spread": round(spread, 2),
         "spreadPercent": round(spread_pct, 4),
     }

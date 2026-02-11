@@ -41,12 +41,7 @@ logger = logging.getLogger(__name__)
 def match_order(order_id):
     """
     Try to match an order against existing orders in the book.
-
-    Args:
-        order_id: UUID of the order to match
-
-    Returns:
-        list: List of created Transaction objects
+    Skips Stop-Loss and Take-Profit (handled by check_conditional_orders task).
     """
     try:
         order = Order.objects.select_related("stock", "user").get(
@@ -55,6 +50,13 @@ def match_order(order_id):
         )
     except Order.DoesNotExist:
         logger.warning(f"Order {order_id} not found or not matchable")
+        return []
+
+    if order.execution_type in (
+        Order.ExecutionType.STOP_LOSS,
+        Order.ExecutionType.TAKE_PROFIT,
+    ):
+        logger.debug(f"Order {order_id} is conditional, skipped from matching")
         return []
 
     if order.type == Order.OrderType.BUY:
@@ -66,21 +68,22 @@ def match_order(order_id):
 def _match_buy_order(buy_order):
     """
     Match a buy order against existing sell orders.
-    Find sell orders where sell_price <= buy_price, sorted by:
-    1. Price ASC (cheapest sell first)
-    2. Created time ASC (oldest first - FIFO)
+    - Limit: sell_price <= buy_price
+    - Market: match any sell order (price stores reservation amount)
+    Sorted by: 1) Price ASC (cheapest first), 2) Created time ASC (FIFO)
     """
-    matching_sells = (
-        Order.objects.filter(
-            stock=buy_order.stock,
-            type=Order.OrderType.SELL,
-            status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
-            price__lte=buy_order.price,
+    base_qs = Order.objects.filter(
+        stock=buy_order.stock,
+        type=Order.OrderType.SELL,
+        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
+    ).exclude(user=buy_order.user).select_related("stock", "user")
+
+    if buy_order.execution_type == Order.ExecutionType.MARKET:
+        matching_sells = base_qs.order_by("price", "created_at")
+    else:
+        matching_sells = base_qs.filter(price__lte=buy_order.price).order_by(
+            "price", "created_at"
         )
-        .exclude(user=buy_order.user)  # Can't trade with yourself
-        .select_related("stock", "user")
-        .order_by("price", "created_at")
-    )
 
     transactions = []
 
@@ -98,21 +101,22 @@ def _match_buy_order(buy_order):
 def _match_sell_order(sell_order):
     """
     Match a sell order against existing buy orders.
-    Find buy orders where buy_price >= sell_price, sorted by:
-    1. Price DESC (highest buy first)
-    2. Created time ASC (oldest first - FIFO)
+    - Limit: buy_price >= sell_price
+    - Market: match any buy order
+    Sorted by: 1) Price DESC (highest first), 2) Created time ASC (FIFO)
     """
-    matching_buys = (
-        Order.objects.filter(
-            stock=sell_order.stock,
-            type=Order.OrderType.BUY,
-            status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
-            price__gte=sell_order.price,
-        )
-        .exclude(user=sell_order.user)  # Can't trade with yourself
-        .select_related("stock", "user")
-        .order_by("-price", "created_at")
-    )
+    base_qs = Order.objects.filter(
+        stock=sell_order.stock,
+        type=Order.OrderType.BUY,
+        status__in=[Order.OrderStatus.PENDING, Order.OrderStatus.PARTIAL],
+    ).exclude(user=sell_order.user).select_related("stock", "user")
+
+    if sell_order.execution_type == Order.ExecutionType.MARKET:
+        matching_buys = base_qs.order_by("-price", "created_at")
+    else:
+        matching_buys = base_qs.filter(
+            price__gte=sell_order.price
+        ).order_by("-price", "created_at")
 
     transactions = []
 

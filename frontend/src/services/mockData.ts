@@ -586,6 +586,9 @@ export function generateOrderBook(currentPrice: number): OrderBook {
     symbol: "",
     bids,
     asks,
+    bestBid: bids[0].price,
+    bestAsk: asks[0].price,
+    currentPrice,
     spread: +spread.toFixed(2),
     spreadPercent: +((spread / currentPrice) * 100).toFixed(3),
   };

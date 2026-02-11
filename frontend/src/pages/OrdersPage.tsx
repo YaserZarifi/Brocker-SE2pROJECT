@@ -108,12 +108,21 @@ export default function OrdersPage() {
                       <span className="text-sm font-medium">{order.stockSymbol}</span>
                     </td>
                     <td className="py-3.5 text-center">
-                      <Badge
-                        variant={order.type === "buy" ? "success" : "danger"}
-                        className="text-xs"
-                      >
-                        {t(`stock.${order.type}`)}
-                      </Badge>
+                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                        <Badge
+                          variant={order.type === "buy" ? "success" : "danger"}
+                          className="text-xs"
+                        >
+                          {t(`stock.${order.type}`)}
+                        </Badge>
+                        {order.executionType && order.executionType !== "limit" && (
+                          <Badge variant="outline" className="text-xs">
+                            {order.executionType === "market" && t("stock.market")}
+                            {order.executionType === "stop_loss" && t("stock.stopLoss")}
+                            {order.executionType === "take_profit" && t("stock.takeProfit")}
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 text-end text-sm tabular-nums">
                       {formatPrice(order.price, language)}

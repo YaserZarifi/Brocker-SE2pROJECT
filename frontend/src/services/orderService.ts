@@ -8,8 +8,10 @@ import type { Order, Portfolio, OrderBook } from "@/types";
 export interface CreateOrderPayload {
   stock_symbol: string;
   type: "buy" | "sell";
-  price: number;
+  execution_type?: "limit" | "market" | "stop_loss" | "take_profit";
+  price?: number;
   quantity: number;
+  trigger_price?: number;
 }
 
 export const orderService = {

@@ -16,10 +16,16 @@ export const stockService = {
     return normalizeStock(data);
   },
 
-  async getPriceHistory(symbol: string, days = 30): Promise<PriceHistory[]> {
+  async getPriceHistory(
+    symbol: string,
+    days = 30,
+    interval?: "1m" | "5m" | "15m" | "1h" | "4h" | "1D" | "1W"
+  ): Promise<PriceHistory[]> {
+    const params: Record<string, number | string> = { days };
+    if (interval) params.interval = interval;
     const { data } = await api.get<PriceHistory[]>(
       `/stocks/${symbol}/history/`,
-      { params: { days } }
+      { params }
     );
     return data;
   },

@@ -14,6 +14,12 @@ class Order(models.Model):
         BUY = "buy", "Buy"
         SELL = "sell", "Sell"
 
+    class ExecutionType(models.TextChoices):
+        LIMIT = "limit", "Limit"
+        MARKET = "market", "Market"
+        STOP_LOSS = "stop_loss", "Stop-Loss"
+        TAKE_PROFIT = "take_profit", "Take-Profit"
+
     class OrderStatus(models.TextChoices):
         PENDING = "pending", "Pending"
         MATCHED = "matched", "Matched"
@@ -33,8 +39,16 @@ class Order(models.Model):
         related_name="orders",
     )
     type = models.CharField(max_length=4, choices=OrderType.choices)
+    execution_type = models.CharField(
+        max_length=12,
+        choices=ExecutionType.choices,
+        default=ExecutionType.LIMIT,
+    )
     price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.PositiveIntegerField()
+    trigger_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
     filled_quantity = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=10, choices=OrderStatus.choices, default=OrderStatus.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
