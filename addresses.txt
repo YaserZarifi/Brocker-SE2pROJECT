@@ -1,0 +1,6 @@
+اپلیکیشن	           http://localhost
+API Docs	   http://localhost/api/docs/
+Grafana	           http://localhost:3000
+Prometheus	   http://localhost:9090
+RabbitMQ	   http://localhost:15672
+Backend مستقیم 	   http://localhost:8001

@@ -45,8 +45,15 @@
 
 ```
 d:\Amirkabir\SE2\Project\
-├── CONTEXT.md               # ← این فایل
+├── CONTEXT.md               # ← این فایل (برای چت جدید این رو بخون)
 ├── SE_PRJCT.pdf             # نیازمندی‌های پروژه
+├── docs/                    # مستندات Sprint 6
+│   ├── Risk_Analysis.md
+│   ├── Vision_Document.md
+│   ├── Test_Plan.md
+│   ├── Burndown_Chart.md
+│   ├── Incident_Postmortem_1.md, 2.md, 3.md
+│   └── Sprint_Planning.md, Sprint_Review.md, Sprint_Retrospective.md
 ├── diagrams/                # دیاگرام‌های UML (✅ همه انجام شده)
 │   ├── *.puml               # PlantUML source files
 │   ├── EA/                  # Enterprise Architect diagrams (.png)
@@ -58,11 +65,11 @@ d:\Amirkabir\SE2\Project\
 │   │   │   ├── ui/          # shadcn-style: button, card, input, badge, tabs, tooltip, avatar, progress, separator, scroll-area
 │   │   │   ├── layout/      # Sidebar, Header, MainLayout
 │   │   │   └── common/      # ThemeToggle, LanguageToggle, Logo
-│   │   ├── pages/           # LoginPage, RegisterPage, DashboardPage, MarketPage, StockDetailPage, PortfolioPage, OrdersPage, TransactionsPage, NotificationsPage, AdminPage
+│   │   ├── pages/           # LoginPage, RegisterPage, DashboardPage, MarketPage, StockDetailPage, PortfolioPage, OrdersPage, TransactionsPage, NotificationsPage, ProfilePage, AdminPage
 │   │   ├── stores/          # Zustand: authStore, themeStore, stockStore, notificationStore (← connected to API + WebSocket)
 │   │   ├── services/
 │   │   │   ├── api.ts           # Axios instance + JWT token management + auto-refresh interceptor
-│   │   │   ├── authService.ts   # login, register, getProfile
+│   │   │   ├── authService.ts   # login, register, getProfile, updateProfile, changePassword
 │   │   │   ├── stockService.ts  # getStocks, getStock, getPriceHistory, getMarketStats
 │   │   │   ├── orderService.ts  # getOrders, createOrder, cancelOrder, getPortfolio, getOrderBook
 │   │   │   ├── transactionService.ts  # getTransactions
@@ -72,13 +79,13 @@ d:\Amirkabir\SE2\Project\
 │   │   │   └── mockData.ts      # Fallback generators: generatePriceHistory(), generateOrderBook()
 │   │   ├── i18n/            # en.json + fa.json + index.ts
 │   │   ├── types/           # TypeScript interfaces: User, Stock, Order, Transaction, Portfolio, Notification, OrderBook, PriceHistory, MarketStats
-│   │   ├── lib/             # utils.ts (cn, formatPrice, formatNumber, formatPercent, getChangeColor, ...)
+│   │   ├── lib/             # utils.ts (cn, formatPrice, getAvatarUrl, ...)
 │   │   ├── router.tsx       # React Router config
 │   │   ├── App.tsx          # Root component (checkAuth + WebSocket connect on load)
 │   │   ├── main.tsx         # Entry point
 │   │   └── index.css        # Tailwind v4 + CSS variables (dark/light themes)
 │   ├── index.html
-│   ├── vite.config.ts       # Vite + Tailwind + path aliases + proxy /api→:8000, /ws→ws://:8000
+│   ├── vite.config.ts       # Vite + Tailwind + path aliases + proxy /api, /media, /ws → :8000
 │   └── package.json         # Dependencies incl. ethers (Sprint 5)
 │
 ├── backend/                 # ✅ Django Backend (Sprint 2 + 3 + 4 + 5)
@@ -93,7 +100,7 @@ d:\Amirkabir\SE2\Project\
 │   │   └── __init__.py      # ✅ Sprint 3: Celery app auto-import
 │   ├── users/               # Custom User model (UUID PK, email login, JWT auth, role, wallet_address, cash_balance)
 │   │   ├── models.py        # User(AbstractUser) with Role choices, USERNAME_FIELD="email"
-│   │   ├── serializers.py   # UserSerializer, UserRegistrationSerializer, AdminUserSerializer
+│   │   ├── serializers.py   # UserSerializer (first_name, last_name, avatar), UserUpdateSerializer, AdminUserSerializer
 │   │   ├── views.py         # RegisterView, ProfileView, ChangePasswordView, AdminUserListView
 │   │   ├── siwe_views.py    # ✅ Sprint 5: SIWE nonce + verify endpoints (uses `siwe` library + eth_utils)
 │   │   ├── tests.py         # 28 tests (incl. 10 SIWE tests)
@@ -164,7 +171,7 @@ d:\Amirkabir\SE2\Project\
 │   │   └── entrypoint.sh      # Wait for deps + migrate + collectstatic
 │   ├── frontend/
 │   │   ├── Dockerfile          # Multi-stage: Node build → Nginx serve
-│   │   └── nginx.conf          # Reverse proxy (API + WebSocket + SPA)
+│   │   └── nginx.conf          # Reverse proxy (API + WebSocket + SPA + /media برای آواتار)
 │   ├── hardhat/
 │   │   └── Dockerfile          # Hardhat compile + node
 │   ├── prometheus/
@@ -232,7 +239,7 @@ docker compose up -d --build          # Build + Start all 9 services
 docker compose logs -f setup
 # بعد از اتمام:
 #   Frontend → http://localhost         (Nginx → React SPA)
-#   Backend  → http://localhost:8000    (Daphne ASGI)
+#   Backend  → http://localhost:8001    (Daphne ASGI - پورت 8001 برای جلوگیری از تداخل)
 #   Swagger  → http://localhost/api/docs/
 #   Grafana  → http://localhost:3000    (admin / boursechain)
 #   Prometheus → http://localhost:9090
@@ -241,6 +248,14 @@ docker compose logs -f setup
 
 docker compose down                   # Stop all
 docker compose down -v                # Stop + remove volumes (fresh start)
+
+# ایران: imageها از docker.arvancloud.ir (محدودیت Docker Hub)
+# دستورات مفید:
+#   docker compose ps -a              # وضعیت همه
+#   docker compose logs -f backend    # لاگ زنده
+#   docker compose exec backend python manage.py test -v2
+#   docker compose restart backend    # Restart یک سرویس
+#   docker compose up -d --build      # بعد از تغییر کد
 ```
 
 ### Kubernetes (Sprint 6)
@@ -315,7 +330,7 @@ python manage.py deploy_contract             # Deploy TransactionLedger → save
 | `/api/v1/auth/login/` | POST | No | JWT login (email + password) → {access, refresh} |
 | `/api/v1/auth/register/` | POST | No | Register new user |
 | `/api/v1/auth/refresh/` | POST | No | Refresh JWT token |
-| `/api/v1/auth/profile/` | GET/PUT | Yes | User profile |
+| `/api/v1/auth/profile/` | GET/PATCH | Yes | User profile (first_name, last_name, username, wallet_address, avatar) |
 | `/api/v1/auth/change-password/` | PUT | Yes | Change password |
 | `/api/v1/auth/siwe/nonce/` | GET | No | Get SIWE nonce for Ethereum login |
 | `/api/v1/auth/siwe/verify/` | POST | No | Verify SIWE signature → JWT tokens + user |
@@ -691,3 +706,5 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,...
 - **SIWE**: دکمه "Connect Wallet" در LoginPage با MetaMask کار می‌کنه (extension مرورگر) - آدرس اتوماتیک به EIP-55 checksum تبدیل میشه
 - **PowerShell**: از `&&` استفاده نکن، بجاش از `;` استفاده کن. working_directory پارامتر Shell tool رو ست کن.
 - **سیستم‌عامل**: Windows (PowerShell)
+- **صفحه پروفایل**: `/profile` - ویرایش اطلاعات شخصی، تغییر رمز، تنظیمات تم/زبان، آپلود آواتار. دسترسی: Sidebar یا کلیک روی آواتار در Header.
+- **`.gitattributes`**: `*.sh text eol=lf` برای جلوگیری از خطای CRLF در entrypoint.sh (Docker).
