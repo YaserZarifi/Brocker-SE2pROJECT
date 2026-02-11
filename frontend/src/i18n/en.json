@@ -11,7 +11,8 @@
     "transactions": "Transactions",
     "notifications": "Notifications",
     "admin": "Admin Panel",
-    "settings": "Settings"
+    "settings": "Settings",
+    "profile": "Profile"
   },
   "auth": {
     "login": "Sign In",
@@ -178,5 +179,29 @@
     "noData": "No data available",
     "seeAll": "See All",
     "back": "Back"
+  },
+  "profile": {
+    "title": "Profile",
+    "personalInfo": "Personal Information",
+    "security": "Security",
+    "preferences": "Preferences",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "username": "Username",
+    "walletAddress": "Wallet Address",
+    "avatar": "Profile Photo",
+    "uploadAvatar": "Upload photo",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "theme": "Theme",
+    "language": "Language",
+    "light": "Light",
+    "dark": "Dark",
+    "memberSince": "Member since",
+    "updateSuccess": "Profile updated successfully",
+    "passwordSuccess": "Password changed successfully",
+    "updateProfile": "Update Profile"
   }
 }

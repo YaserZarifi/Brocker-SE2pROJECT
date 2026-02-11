@@ -15,6 +15,7 @@ interface AuthState {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -114,4 +115,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       authService.logout();
     }
   },
+
+  setUser: (user) => set({ user }),
 }));

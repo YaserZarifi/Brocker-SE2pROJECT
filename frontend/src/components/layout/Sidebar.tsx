@@ -7,6 +7,7 @@ import {
   ClipboardList,
   ArrowLeftRight,
   Bell,
+  User,
   Shield,
   ChevronLeft,
   ChevronRight,
@@ -61,7 +62,7 @@ export function Sidebar() {
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="flex flex-col gap-1">
-          {navItems.map(({ key, path, icon: Icon }) => (
+          {[...navItems, { key: "profile", path: "/profile", icon: User }].map(({ key, path, icon: Icon }) => (
             <Tooltip key={key} delayDuration={sidebarCollapsed ? 100 : 1000}>
               <TooltipTrigger asChild>
                 <NavLink

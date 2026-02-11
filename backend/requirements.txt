@@ -15,4 +15,8 @@ gunicorn>=23.0,<24.0
 web3>=6.0,<8.0
 # Sprint 5 - Real-time WebSocket + SIWE
 channels[daphne]>=4.0,<5.0
+channels-redis>=4.2,<5.0
 siwe>=4.0,<5.0
+# Sprint 6 - DevOps + Monitoring
+whitenoise>=6.7,<7.0
+django-prometheus>=2.3,<3.0

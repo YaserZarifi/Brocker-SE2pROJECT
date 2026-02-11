@@ -1,0 +1,66 @@
+# ==============================================
+# BourseChain - Hardhat (Private Ethereum Node)
+# Sprint 6 - Orchestration
+# ==============================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hardhat
+  namespace: boursechain
+  labels:
+    app.kubernetes.io/name: hardhat
+    app.kubernetes.io/part-of: boursechain
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hardhat
+  template:
+    metadata:
+      labels:
+        app: hardhat
+    spec:
+      containers:
+        - name: hardhat
+          image: boursechain-hardhat:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8545
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8545
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8545
+            initialDelaySeconds: 15
+            periodSeconds: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hardhat-service
+  namespace: boursechain
+  labels:
+    app.kubernetes.io/name: hardhat
+    app.kubernetes.io/part-of: boursechain
+spec:
+  type: ClusterIP
+  selector:
+    app: hardhat
+  ports:
+    - port: 8545
+      targetPort: 8545
+      protocol: TCP

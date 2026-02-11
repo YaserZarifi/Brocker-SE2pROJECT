@@ -15,6 +15,8 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "username",
+            "first_name",
+            "last_name",
             "email",
             "role",
             "wallet_address",
@@ -22,7 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
             "cash_balance",
             "date_joined",
         ]
-        read_only_fields = ["id", "date_joined", "role"]
+        read_only_fields = ["id", "date_joined", "role", "email"]
 
     def get_name(self, obj):
         full_name = obj.get_full_name()
@@ -65,7 +67,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["first_name", "last_name", "wallet_address", "avatar"]
+        fields = ["first_name", "last_name", "username", "wallet_address", "avatar"]
 
 
 class ChangePasswordSerializer(serializers.Serializer):

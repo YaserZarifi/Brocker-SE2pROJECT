@@ -54,3 +54,10 @@ export function generateRandomPrice(base: number, volatility: number = 0.02): nu
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** Build full URL for avatar/media from API response */
+export function getAvatarUrl(avatar: string | null | undefined): string | undefined {
+  if (!avatar) return undefined;
+  if (avatar.startsWith("http") || avatar.startsWith("/")) return avatar;
+  return `/${avatar.startsWith("media/") ? avatar : `media/${avatar}`}`;
+}

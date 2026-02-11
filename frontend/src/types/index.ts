@@ -6,9 +6,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
   role: "customer" | "admin";
   walletAddress?: string;
   avatar?: string;
+  cashBalance?: string;
   createdAt: string;
 }
 

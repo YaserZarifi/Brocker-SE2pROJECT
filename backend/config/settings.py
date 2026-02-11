@@ -4,6 +4,7 @@ Sprint 2 - Backend API + Database
 Sprint 3 - Matching Engine + Celery
 Sprint 4 - Blockchain Integration
 Sprint 5 - Real-time WebSocket + SIWE
+Sprint 6 - Docker + Monitoring + DevOps
 """
 
 import os
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     "django_filters",
     "drf_spectacular",
     "channels",  # Sprint 5: Django Channels for WebSocket
+    "django_prometheus",  # Sprint 6: Prometheus monitoring metrics
     # Local apps (Modular Monolith - each app = logical microservice)
     "users.apps.UsersConfig",
     "stocks.apps.StocksConfig",
@@ -54,7 +56,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",  # Sprint 6: Must be first
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Sprint 6: Serve static in production
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -62,6 +66,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django_prometheus.middleware.PrometheusAfterMiddleware",  # Sprint 6: Must be last
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -288,25 +293,37 @@ BLOCKCHAIN_CONTRACT_ADDRESS = os.environ.get("BLOCKCHAIN_CONTRACT_ADDRESS", "")
 
 
 # =============================================================================
-# Django Channels Configuration (Sprint 5)
+# Django Channels Configuration (Sprint 5 + Sprint 6)
 # =============================================================================
+# Dev: InMemoryChannelLayer (no Redis needed)
+# Docker/Production: RedisChannelLayer (via Redis)
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+_use_inmemory_channel = os.environ.get("USE_LOCMEM_CACHE", "False").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+
+if _use_inmemory_channel:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
     }
-}
-
-# For production with Redis:
-# if not os.environ.get("USE_LOCMEM_CACHE", "False").lower() in ("true", "1", "yes"):
-#     CHANNEL_LAYERS = {
-#         "default": {
-#             "BACKEND": "channels_redis.core.RedisChannelLayer",
-#             "CONFIG": {
-#                 "hosts": [os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/3")],
-#             },
-#         }
-#     }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [
+                    os.environ.get(
+                        "CHANNEL_REDIS_URL",
+                        os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/3"),
+                    )
+                ],
+            },
+        }
+    }
 
 
 # =============================================================================

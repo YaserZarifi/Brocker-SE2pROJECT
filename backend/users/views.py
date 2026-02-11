@@ -48,6 +48,14 @@ class ProfileView(generics.RetrieveUpdateAPIView):
             return UserUpdateSerializer
         return UserSerializer
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(UserSerializer(instance).data)
+
 
 class ChangePasswordView(generics.UpdateAPIView):
     """Change the authenticated user's password."""

@@ -11,7 +11,8 @@
     "transactions": "تراکنش‌ها",
     "notifications": "اعلان‌ها",
     "admin": "پنل مدیریت",
-    "settings": "تنظیمات"
+    "settings": "تنظیمات",
+    "profile": "پروفایل"
   },
   "auth": {
     "login": "ورود",
@@ -178,5 +179,29 @@
     "noData": "داده‌ای موجود نیست",
     "seeAll": "مشاهده همه",
     "back": "بازگشت"
+  },
+  "profile": {
+    "title": "پروفایل",
+    "personalInfo": "اطلاعات شخصی",
+    "security": "امنیت",
+    "preferences": "تنظیمات",
+    "firstName": "نام",
+    "lastName": "نام خانوادگی",
+    "username": "نام کاربری",
+    "walletAddress": "آدرس کیف پول",
+    "avatar": "تصویر پروفایل",
+    "uploadAvatar": "آپلود تصویر",
+    "changePassword": "تغییر رمز عبور",
+    "currentPassword": "رمز عبور فعلی",
+    "newPassword": "رمز عبور جدید",
+    "confirmNewPassword": "تکرار رمز عبور جدید",
+    "theme": "تم",
+    "language": "زبان",
+    "light": "روشن",
+    "dark": "تاریک",
+    "memberSince": "عضو از",
+    "updateSuccess": "پروفایل با موفقیت به‌روزرسانی شد",
+    "passwordSuccess": "رمز عبور با موفقیت تغییر کرد",
+    "updateProfile": "به‌روزرسانی پروفایل"
   }
 }

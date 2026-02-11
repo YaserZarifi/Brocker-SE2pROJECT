@@ -10,6 +10,7 @@ import OrdersPage from "@/pages/OrdersPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import AdminPage from "@/pages/AdminPage";
+import ProfilePage from "@/pages/ProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "orders", element: <OrdersPage /> },
       { path: "transactions", element: <TransactionsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "profile", element: <ProfilePage /> },
       { path: "admin", element: <AdminPage /> },
     ],
   },

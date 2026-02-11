@@ -49,3 +49,19 @@ backend/blockchain_service/contract_address.json
 
 # Enterprise Architect temp
 diagrams/EA/*.ldb
+
+# Docker (Sprint 6)
+docker-compose.override.yml
+
+# Terraform (Sprint 6)
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+terraform/crash.log
+terraform/.terraform.tfstate.lock.info
+
+# Monitoring data
+grafana-data/
+prometheus-data/

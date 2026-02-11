@@ -1,0 +1,17 @@
+# ==============================================
+# Grafana - Dashboard Provisioning
+# Sprint 6 - Monitoring
+# ==============================================
+
+apiVersion: 1
+
+providers:
+  - name: "BourseChain"
+    orgId: 1
+    folder: "BourseChain"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

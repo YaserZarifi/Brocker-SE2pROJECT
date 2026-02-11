@@ -1,0 +1,12 @@
+# ==============================================
+# BourseChain - Kubernetes Namespace
+# Sprint 6 - Orchestration
+# ==============================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: boursechain
+  labels:
+    app.kubernetes.io/name: boursechain
+    app.kubernetes.io/part-of: boursechain

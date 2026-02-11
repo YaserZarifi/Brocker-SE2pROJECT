@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { LanguageToggle } from "@/components/common/LanguageToggle";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/authStore";
+import { getAvatarUrl } from "@/lib/utils";
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useThemeStore } from "@/stores/themeStore";
 
@@ -66,8 +67,12 @@ export function Header() {
         </button>
 
         {/* User */}
-        <div className="ms-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent cursor-pointer">
+        <div
+          onClick={() => navigate("/profile")}
+          className="ms-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-accent cursor-pointer"
+        >
           <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.avatar ? getAvatarUrl(user.avatar) : undefined} alt={user?.name} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-semibold">
               {initials}
             </AvatarFallback>

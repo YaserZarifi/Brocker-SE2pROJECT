@@ -34,10 +34,10 @@
 | **Blockchain** | Hardhat + Ethers.js + Solidity 0.8.24 + Web3.py 7 | ✅ Sprint 4 |
 | **Real-time** | Django Channels + Daphne + WebSocket (InMemoryChannelLayer) | ✅ Sprint 5 |
 | **Login امتیازی** | SIWE (Sign-In with Ethereum) via EIP-4361 + MetaMask + ethers.js | ✅ Sprint 5 |
-| **Container** | Docker + Docker Compose | ⏳ Sprint 6 |
-| **Orchestration** | Kubernetes manifests (فقط فایل‌ها) | ⏳ Sprint 6 |
-| **Monitoring** | Prometheus + Grafana (config only) | ⏳ Sprint 6 |
-| **IaC (امتیازی)** | Terraform | ⏳ Sprint 6 |
+| **Container** | Docker + Docker Compose (9 services) | ✅ Sprint 6 |
+| **Orchestration** | Kubernetes manifests (11 YAML files) | ✅ Sprint 6 |
+| **Monitoring** | Prometheus + Grafana (auto-provisioned dashboard) | ✅ Sprint 6 |
+| **IaC (امتیازی)** | Terraform (AWS: VPC, EKS, RDS, ElastiCache, ECR) | ✅ Sprint 6 |
 
 ---
 
@@ -155,9 +155,46 @@ d:\Amirkabir\SE2\Project\
 │   ├── test/
 │   │   └── TransactionLedger.test.js  # 13 Mocha/Chai tests
 │   └── .gitignore           # node_modules, artifacts, cache, deployments
-├── docker/                  # ⏳ Sprint 6
-├── k8s/                     # ⏳ Sprint 6
-└── terraform/               # ⏳ Sprint 6
+├── docker-compose.yml          # ✅ Sprint 6: Full-stack Docker orchestration
+├── .dockerignore               # ✅ Sprint 6: Docker build exclusions
+│
+├── docker/                     # ✅ Sprint 6: Docker configurations
+│   ├── backend/
+│   │   ├── Dockerfile          # Python 3.12 + Daphne ASGI
+│   │   └── entrypoint.sh      # Wait for deps + migrate + collectstatic
+│   ├── frontend/
+│   │   ├── Dockerfile          # Multi-stage: Node build → Nginx serve
+│   │   └── nginx.conf          # Reverse proxy (API + WebSocket + SPA)
+│   ├── hardhat/
+│   │   └── Dockerfile          # Hardhat compile + node
+│   ├── prometheus/
+│   │   └── prometheus.yml      # Scrape config (django-prometheus)
+│   └── grafana/
+│       ├── provisioning/       # Auto-provision datasource + dashboard
+│       └── dashboards/
+│           └── boursechain.json # Request rate, latency, errors, DB queries
+│
+├── k8s/                        # ✅ Sprint 6: Kubernetes manifests
+│   ├── namespace.yaml
+│   ├── configmap.yaml
+│   ├── secret.yaml
+│   ├── postgres.yaml           # Deployment + Service + PVC
+│   ├── redis.yaml              # Deployment + Service
+│   ├── rabbitmq.yaml           # Deployment + Service
+│   ├── hardhat.yaml            # Deployment + Service
+│   ├── backend.yaml            # Deployment + Service (2 replicas, init: migrate)
+│   ├── celery.yaml             # Deployment (worker)
+│   ├── frontend.yaml           # Deployment + Service (2 replicas)
+│   └── ingress.yaml            # Nginx Ingress (API/WS→backend, /→frontend)
+│
+└── terraform/                  # ✅ Sprint 6: AWS IaC
+    ├── provider.tf             # AWS + Kubernetes providers
+    ├── variables.tf            # All input variables
+    ├── main.tf                 # VPC, EKS, RDS, ElastiCache, ECR, Security Groups
+    ├── outputs.tf              # Connection strings, endpoints
+    ├── terraform.tfvars.example
+    └── modules/
+        └── eks/                # EKS cluster + node group module
 ```
 
 ---
@@ -185,6 +222,53 @@ python manage.py runserver 8000     # → http://localhost:8000 (Daphne ASGI - H
 cd frontend
 npm install
 npm run dev     # → http://localhost:5173 (proxy /api → :8000, /ws → ws://:8000)
+```
+
+### Docker (Sprint 6 - یکجا همه سرویس‌ها)
+```powershell
+cd Project
+docker compose up -d --build          # Build + Start all 9 services
+# صبر کن setup service تموم بشه (deploy contract + seed data):
+docker compose logs -f setup
+# بعد از اتمام:
+#   Frontend → http://localhost         (Nginx → React SPA)
+#   Backend  → http://localhost:8000    (Daphne ASGI)
+#   Swagger  → http://localhost/api/docs/
+#   Grafana  → http://localhost:3000    (admin / boursechain)
+#   Prometheus → http://localhost:9090
+#   RabbitMQ → http://localhost:15672   (guest / guest)
+#   Hardhat  → http://localhost:8545
+
+docker compose down                   # Stop all
+docker compose down -v                # Stop + remove volumes (fresh start)
+```
+
+### Kubernetes (Sprint 6)
+```powershell
+# با minikube:
+minikube start
+minikube addons enable ingress
+
+# Apply all manifests:
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/
+
+# Check status:
+kubectl get all -n boursechain
+
+# Access:
+echo "$(minikube ip) boursechain.local" | Add-Content C:\Windows\System32\drivers\etc\hosts
+# → http://boursechain.local
+```
+
+### Terraform (Sprint 6 - AWS)
+```powershell
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# ویرایش terraform.tfvars (password و region)
+terraform init
+terraform plan
+terraform apply
 ```
 
 ### Blockchain (Sprint 4)
@@ -437,12 +521,39 @@ python manage.py deploy_contract             # Deploy TransactionLedger → save
   - SIWE: get nonce, nonce cached, nonce unique, verify valid signature, create user, existing wallet user, invalid signature, missing fields, expired nonce, fake nonce
   - Broadcast utilities: no-raise guarantee
 
-### ⏳ Sprint 6 - DevOps + Documentation
-- Docker + Docker Compose for all services (Django+Daphne, PostgreSQL, Redis, RabbitMQ, Hardhat, Nginx, Frontend)
-- Kubernetes manifests (Deployment, Service, Ingress, ConfigMap, Secret)
-- Prometheus + Grafana config (monitoring)
-- Terraform IaC (bonus - cloud infra)
-- مستندات: Risk Analysis, Vision, Test Plan, Burndown, Incident Postmortem, Sprint Reports
+### ✅ Sprint 6 - DevOps + Infrastructure (DONE)
+- **Docker + Docker Compose**: 9 services (backend, celery, frontend, postgres, redis, rabbitmq, hardhat, prometheus, grafana) + setup service
+  - Backend: Python 3.12 + Daphne ASGI + entrypoint.sh (wait→migrate→collectstatic→start)
+  - Frontend: Multi-stage (Node build → Nginx) + reverse proxy (API/WS/admin/metrics)
+  - Hardhat: Compile + persistent local Ethereum node
+  - `docker compose up -d --build` → همه سرویس‌ها بالا می‌آد!
+- **Kubernetes manifests**: 11 YAML files
+  - Namespace, ConfigMap, Secret (base64)
+  - PostgreSQL (Deployment + Service + PVC 5Gi)
+  - Redis, RabbitMQ, Hardhat (Deployment + Service)
+  - Backend (2 replicas, init container: migrate, readiness/liveness probes)
+  - Celery Worker (liveness: celery inspect ping)
+  - Frontend (2 replicas, Nginx health check)
+  - Ingress (Nginx Ingress Controller: /api,/ws→backend, /→frontend)
+- **Monitoring**: Prometheus + Grafana
+  - `django-prometheus` middleware → `/metrics` endpoint (request rate, latency, status codes, DB queries)
+  - Prometheus scrape config (15s interval)
+  - Grafana auto-provisioned dashboard (8 panels: health, request rate, latency p50/95/99, status codes, DB queries, top views)
+  - Grafana: http://localhost:3000 (admin/boursechain)
+- **Terraform IaC** (AWS - امتیازی):
+  - VPC + public/private subnets + NAT Gateway
+  - EKS cluster + managed node group (auto-scaling)
+  - RDS PostgreSQL 16 (private subnet, multi-AZ in prod)
+  - ElastiCache Redis 7.1 (private subnet)
+  - ECR repositories (backend, frontend, hardhat)
+  - Security Groups (EKS↔RDS, EKS↔Redis)
+  - Region: me-south-1 (Bahrain - نزدیک‌ترین به ایران)
+- **Backend Updates**:
+  - `whitenoise` middleware → static files in production
+  - `django-prometheus` → request/DB metrics at `/metrics`
+  - `channels-redis` → Redis Channel Layer in production (InMemory in dev)
+  - `/health/` endpoint → Docker/K8s health checks
+- ✅ مستندات: Risk Analysis, Vision, Test Plan, Burndown, Incident Postmortem (3), Sprint Reports (Planning, Review, Retrospective) → `docs/`
 
 ---
 
@@ -458,7 +569,7 @@ python manage.py deploy_contract             # Deploy TransactionLedger → save
 ### امتیازی
 1. ✅ ورود با اتریوم (SIWE - EIP-4361) (Sprint 5)
 2. ⏳ Matching Engine غیرمتمرکز روی بلاکچین
-3. ⏳ Infrastructure as Code - Terraform (Sprint 6)
+3. ✅ Infrastructure as Code - Terraform (Sprint 6)
 4. ⏳ گزارش‌های Sprint
 
 ### مستندات مورد نیاز
@@ -559,9 +670,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,...
 
 ## نکات مهم برای ادامه کار
 
-- **Sprint 5 انجام شد**: Real-time WebSocket + SIWE + 163 تست (150 Django + 13 Hardhat)
+- **Sprint 6 انجام شد**: Docker + K8s + Monitoring + Terraform
 - **همه 5 نیازمندی اجباری PDF انجام شد** ✅
-- **Sprint 6 بعدیه**: Docker + K8s + Monitoring + Terraform + مستندات
+- **همه ویژگی‌های امتیازی فنی انجام شد** ✅ (SIWE + Terraform)
 - **هیچ API پولی لازم نیست**: Hardhat یک بلاکچین لوکال رایگان اجرا می‌کنه
 - مدل Transaction فیلد `blockchain_hash` داره و بعد از هر match پر میشه
 - `backend/blockchain_service/` سرویس Web3.py + Celery task + API endpoints

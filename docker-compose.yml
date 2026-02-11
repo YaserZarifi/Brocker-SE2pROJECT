@@ -1,0 +1,297 @@
+# ==============================================
+# BourseChain - Docker Compose
+# Sprint 6 - All Services
+# ==============================================
+# Usage:
+#   docker compose up -d                  # Start all services
+#   docker compose up -d --build          # Rebuild and start
+#   docker compose logs -f backend        # View backend logs
+#   docker compose exec backend python manage.py createsuperuser
+#   docker compose down -v                # Stop and remove volumes
+# ==============================================
+
+services:
+
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: docker.arvancloud.ir/postgres:16-alpine
+    container_name: boursechain-postgres
+    environment:
+      POSTGRES_DB: boursechain
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d boursechain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Redis (Cache + Channel Layer + Celery Result)
+  # ============================================
+  redis:
+    image: docker.arvancloud.ir/redis:7-alpine
+    container_name: boursechain-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # RabbitMQ (Celery Message Broker)
+  # ============================================
+  rabbitmq:
+    image: docker.arvancloud.ir/rabbitmq:3-management-alpine
+    container_name: boursechain-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"    # Management UI → http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Hardhat - Private Ethereum Node
+  # ============================================
+  hardhat:
+    build:
+      context: .
+      dockerfile: docker/hardhat/Dockerfile
+    container_name: boursechain-hardhat
+    ports:
+      - "8545:8545"
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Django Backend (Daphne ASGI - HTTP + WebSocket)
+  # ============================================
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: boursechain-backend
+    environment:
+      # Django
+      DJANGO_SECRET_KEY: "boursechain-docker-secret-key-change-in-prod-2026"
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "*"
+      # Database
+      DB_NAME: boursechain
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      # Redis
+      REDIS_URL: "redis://redis:6379/1"
+      CHANNEL_REDIS_URL: "redis://redis:6379/3"
+      # Celery
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      # Blockchain
+      BLOCKCHAIN_ENABLED: "True"
+      BLOCKCHAIN_RPC_URL: "http://hardhat:8545"
+      BLOCKCHAIN_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      # CORS
+      CORS_ALLOWED_ORIGINS: "http://localhost,http://localhost:80,http://127.0.0.1"
+      # SIWE
+      SIWE_DOMAIN: "localhost"
+      SIWE_URI: "http://localhost"
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Celery Worker (Async Tasks: Matching + Blockchain)
+  # ============================================
+  celery:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: boursechain-celery
+    entrypoint: []
+    command: celery -A config worker -l info --concurrency=2
+    environment:
+      # Django
+      DJANGO_SECRET_KEY: "boursechain-docker-secret-key-change-in-prod-2026"
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "*"
+      # Database
+      DB_NAME: boursechain
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      # Redis
+      REDIS_URL: "redis://redis:6379/1"
+      CHANNEL_REDIS_URL: "redis://redis:6379/3"
+      # Celery
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      # Blockchain
+      BLOCKCHAIN_ENABLED: "True"
+      BLOCKCHAIN_RPC_URL: "http://hardhat:8545"
+      BLOCKCHAIN_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Frontend (Nginx + React SPA)
+  # ============================================
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: boursechain-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Setup (One-time: Deploy Contract + Seed Data)
+  # ============================================
+  setup:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: boursechain-setup
+    entrypoint: []
+    command: >
+      bash -c "
+        echo '⏳ Waiting for backend to be ready...' &&
+        sleep 15 &&
+        echo '🔗 Deploying smart contract...' &&
+        python manage.py deploy_contract || echo '⚠️  Contract deploy skipped (Hardhat may not be ready)' &&
+        echo '🌱 Loading seed data...' &&
+        python manage.py seed_data || echo '⚠️  Seed data skipped (may already exist)' &&
+        echo '✅ Setup complete!'
+      "
+    environment:
+      DJANGO_SECRET_KEY: "boursechain-docker-secret-key-change-in-prod-2026"
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "*"
+      DB_NAME: boursechain
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      REDIS_URL: "redis://redis:6379/1"
+      CHANNEL_REDIS_URL: "redis://redis:6379/3"
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      BLOCKCHAIN_ENABLED: "True"
+      BLOCKCHAIN_RPC_URL: "http://hardhat:8545"
+      BLOCKCHAIN_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      hardhat:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - boursechain-net
+    restart: "no"
+
+  # ============================================
+  # Prometheus (Monitoring)
+  # ============================================
+  prometheus:
+    image: docker.arvancloud.ir/prom/prometheus:latest
+    container_name: boursechain-prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    depends_on:
+      - backend
+    networks:
+      - boursechain-net
+
+  # ============================================
+  # Grafana (Dashboards)
+  # ============================================
+  grafana:
+    image: docker.arvancloud.ir/grafana/grafana:latest
+    container_name: boursechain-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: boursechain
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - boursechain-net
+
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  boursechain-net:
+    driver: bridge

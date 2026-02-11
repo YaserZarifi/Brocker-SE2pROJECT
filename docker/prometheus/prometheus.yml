@@ -1,0 +1,45 @@
+# ==============================================
+# BourseChain - Prometheus Configuration
+# Sprint 6 - Monitoring
+# ==============================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# Scrape configurations
+scrape_configs:
+
+  # ---------- Prometheus self-monitoring ----------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # ---------- Django Backend (via django-prometheus) ----------
+  - job_name: "django-backend"
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["backend:8000"]
+        labels:
+          service: "backend"
+          framework: "django"
+
+  # ---------- PostgreSQL (via pg_exporter if added) ----------
+  # - job_name: "postgres"
+  #   static_configs:
+  #     - targets: ["postgres-exporter:9187"]
+
+  # ---------- Redis ----------
+  # - job_name: "redis"
+  #   static_configs:
+  #     - targets: ["redis-exporter:9121"]
+
+  # ---------- RabbitMQ (built-in Prometheus plugin) ----------
+  # - job_name: "rabbitmq"
+  #   metrics_path: "/api/metrics"
+  #   static_configs:
+  #     - targets: ["rabbitmq:15692"]

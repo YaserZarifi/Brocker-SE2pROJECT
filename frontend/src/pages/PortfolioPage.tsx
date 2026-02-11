@@ -217,7 +217,7 @@ export default function PortfolioPage() {
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number) => formatPrice(value, language)}
+                    formatter={(value: number | undefined) => formatPrice(value ?? 0, language)}
                   />
                 </RechartsPie>
               </ResponsiveContainer>

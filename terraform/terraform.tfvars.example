@@ -1,0 +1,30 @@
+# ==============================================
+# BourseChain - Terraform Variables Example
+# Sprint 6 - Infrastructure as Code (IaC)
+# ==============================================
+# Copy this file to terraform.tfvars and fill in the values:
+#   cp terraform.tfvars.example terraform.tfvars
+# ==============================================
+
+# General
+project_name = "boursechain"
+environment  = "dev"
+aws_region   = "me-south-1"
+
+# EKS
+eks_cluster_version     = "1.29"
+eks_node_instance_types = ["t3.medium"]
+eks_node_desired_count  = 2
+eks_node_min_count      = 1
+eks_node_max_count      = 4
+
+# RDS (PostgreSQL)
+rds_instance_class    = "db.t3.micro"
+rds_allocated_storage = 20
+rds_db_name           = "boursechain"
+rds_username          = "postgres"
+rds_password          = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+
+# ElastiCache (Redis)
+redis_node_type       = "cache.t3.micro"
+redis_num_cache_nodes = 1
